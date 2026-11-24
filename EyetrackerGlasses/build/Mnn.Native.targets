@@ -1,0 +1,55 @@
+<Project>
+  <PropertyGroup>
+    <MnnArtifactsRoot Condition="'$(MnnArtifactsRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../artifacts/mnn'))</MnnArtifactsRoot>
+    <_MnnTfmPlatform>$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)'))</_MnnTfmPlatform>
+    <_MnnRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</_MnnRid>
+    <_MnnRid Condition="'$(_MnnRid)' == '' and '$(_MnnTfmPlatform)' == ''">$(NETCoreSdkRuntimeIdentifier)</_MnnRid>
+    <_MnnNativeDir>$(MnnArtifactsRoot)/runtimes/$(_MnnRid)/native</_MnnNativeDir>
+    <_MnnDesktopLibrary Condition="'$(_MnnTfmPlatform)' == '' and $(_MnnRid.StartsWith('win-'))">eyetracker_mnn.dll</_MnnDesktopLibrary>
+    <_MnnDesktopLibrary Condition="'$(_MnnTfmPlatform)' == '' and $(_MnnRid.StartsWith('linux-'))">libeyetracker_mnn.so</_MnnDesktopLibrary>
+    <_MnnDesktopLibrary Condition="'$(_MnnTfmPlatform)' == '' and $(_MnnRid.StartsWith('osx-'))">libeyetracker_mnn.dylib</_MnnDesktopLibrary>
+    <EnableMnnNative Condition="'$(EnableMnnNative)' == '' and '$(_MnnDesktopLibrary)' != '' and Exists('$(_MnnNativeDir)/$(_MnnDesktopLibrary)')">true</EnableMnnNative>
+    <EnableMnnNative Condition="'$(EnableMnnNative)' == '' and '$(_MnnTfmPlatform)' == 'android' and Exists('$(MnnArtifactsRoot)/runtimes/android-arm64/native/libeyetracker_mnn.so') and Exists('$(MnnArtifactsRoot)/runtimes/android-x64/native/libeyetracker_mnn.so')">true</EnableMnnNative>
+    <EnableMnnNative Condition="'$(EnableMnnNative)' == '' and '$(_MnnTfmPlatform)' == 'ios' and Exists('$(_MnnNativeDir)/libeyetracker_mnn.a') and Exists('$(_MnnNativeDir)/libMNN.a')">true</EnableMnnNative>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(EnableMnnNative)' == 'true' and '$(_MnnTfmPlatform)' == ''">
+    <Content Include="$(_MnnNativeDir)/$(_MnnDesktopLibrary);$(_MnnNativeDir)/*LICENSE*.txt">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(_MnnNativeDir)/build-info.json" Condition="Exists('$(_MnnNativeDir)/build-info.json')">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup Condition="'$(EnableMnnNative)' == 'true' and ('$(_MnnTfmPlatform)' == 'android' or '$(_MnnTfmPlatform)' == 'ios')">
+    <TrimmerRootAssembly Include="EyetrackerGlasses.Mnn" RootMode="All" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(EnableMnnNative)' == 'true' and '$(_MnnTfmPlatform)' == 'android'">
+    <AndroidNativeLibrary Include="$(MnnArtifactsRoot)/runtimes/android-arm64/native/libeyetracker_mnn.so" Abi="arm64-v8a" />
+    <AndroidNativeLibrary Include="$(MnnArtifactsRoot)/runtimes/android-x64/native/libeyetracker_mnn.so" Abi="x86_64" />
+    <AndroidAsset Include="$(MnnArtifactsRoot)/runtimes/android-arm64/native/MNN-LICENSE.txt" Link="MNN-LICENSE.txt" Condition="Exists('$(MnnArtifactsRoot)/runtimes/android-arm64/native/MNN-LICENSE.txt')" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(EnableMnnNative)' == 'true' and '$(_MnnTfmPlatform)' == 'ios' and '$(_MnnRid)' != ''">
+    <NativeReference Include="$(_MnnNativeDir)/libeyetracker_mnn.a;$(_MnnNativeDir)/libMNN.a">
+      <Kind>Static</Kind>
+      <ForceLoad>True</ForceLoad>
+      <SmartLink>False</SmartLink>
+      <IsCxx>True</IsCxx>
+    </NativeReference>
+    <BundleResource Include="$(_MnnNativeDir)/MNN-LICENSE.txt" LogicalName="MNN-LICENSE.txt" Condition="Exists('$(_MnnNativeDir)/MNN-LICENSE.txt')" />
+  </ItemGroup>
+
+  <Target Name="ValidateMnnNativeArtifacts" BeforeTargets="PrepareForBuild"
+          Condition="'$(EnableMnnNative)' == 'true' and '$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(_MnnTfmPlatform)' == '' and ('$(_MnnDesktopLibrary)' == '' or !Exists('$(_MnnNativeDir)/$(_MnnDesktopLibrary)'))"
+           Text="Missing MNN native runtime for $(_MnnRid). Run: python native/mnn/build.py --rid $(_MnnRid) (from EyetrackerGlasses), or set MnnArtifactsRoot. EnableMnnNative=false is for managed-only builds." />
+    <Error Condition="'$(_MnnTfmPlatform)' == 'android' and (!Exists('$(MnnArtifactsRoot)/runtimes/android-arm64/native/libeyetracker_mnn.so') or !Exists('$(MnnArtifactsRoot)/runtimes/android-x64/native/libeyetracker_mnn.so'))"
+           Text="Build MNN for android-arm64 and android-x64 with native/mnn/build.py before packaging the APK." />
+    <Error Condition="'$(_MnnTfmPlatform)' == 'ios' and ('$(_MnnRid)' == '' or !Exists('$(_MnnNativeDir)/libeyetracker_mnn.a') or !Exists('$(_MnnNativeDir)/libMNN.a'))"
+           Text="Build MNN for $(_MnnRid) on macOS with native/mnn/build.py before building the iOS app." />
+  </Target>
+</Project>
