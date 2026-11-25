@@ -54,4 +54,11 @@
     <system:String x:Key="RegistrationHideText">Скрыть</system:String>
     <system:String x:Key="RegistrationEyesText">Глаза</system:String>
     <system:String x:Key="RegistrationSceneText">Сцена</system:String>
+
+	<!-- Registration page content -->
+	<system:String x:Key="RegistrationPageHeaderText">Управление регистрацией</system:String>
+	<system:String x:Key="RegistrationPageStartRegistrationText">Запуск регистрации</system:String>
+	<system:String x:Key="RegistrationPageStopRegistrationText">Останов регистрации</system:String>
+	<system:String x:Key="RegistrationPageSettingsEyesDetectionText">Обнаружение глаз</system:String>
+	<system:String x:Key="RegistrationPageSettingsTargetDetectionText">Обнаружение мишени</system:String>
 </ResourceDictionary>

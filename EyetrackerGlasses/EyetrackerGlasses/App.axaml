@@ -29,5 +29,6 @@
 		<dialogHost:DialogHostStyles />
 		<FluentTheme />
 		<StyleInclude Source="/Styles/Buttons.axaml" />
+		<StyleInclude Source="/Styles/PillSwitch.axaml" />
 	</Application.Styles>
 </Application>

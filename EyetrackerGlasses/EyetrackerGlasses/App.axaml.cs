@@ -20,7 +20,7 @@ public partial class App : Application
     /// Имя организации. Добавляется в путь к каталогам данных.
     /// Пустая строка — каталоги создаются сразу под именем приложения.
     /// </summary>
-    public const string COMPANY_NAME = "";
+    public const string COMPANY_NAME = "Medicom MTD";
 
     /// <inheritdoc />
     public override void Initialize()

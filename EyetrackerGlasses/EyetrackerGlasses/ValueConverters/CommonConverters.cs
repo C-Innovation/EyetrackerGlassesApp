@@ -146,8 +146,8 @@ namespace EyetrackerGlasses.ValueConverters
 
     public class BooleanToFaIconPlayStopConverter : BaseValueConverter<BooleanToFaIconPlayStopConverter>
     {
-        private PlayStopConverterData DEFAULT_TRUE_KEYS = new PlayStopConverterData { ContentFA = "FA_PlayIcon", ContentForeground = Brushes.Green, ToolTipText = "test_run" };
-        private PlayStopConverterData DEFAULT_FALSE_KEYS = new PlayStopConverterData { ContentFA = "FA_StopIcon", ContentForeground = Brushes.Red, ToolTipText = "test_stop" };
+        private PlayStopConverterData DEFAULT_TRUE_KEYS = new PlayStopConverterData { ContentFA = "FA_PlayIcon", ContentForeground = Brushes.Green, ToolTipText = "RegistrationPageStartRegistrationText" };
+        private PlayStopConverterData DEFAULT_FALSE_KEYS = new PlayStopConverterData { ContentFA = "FA_StopIcon", ContentForeground = Brushes.Red, ToolTipText = "RegistrationPageStopRegistrationText" };
 
         public override object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
@@ -177,7 +177,7 @@ namespace EyetrackerGlasses.ValueConverters
 
                     case PlayStopConverterParameterType.ToolTip:
                         key = flag ? DEFAULT_TRUE_KEYS.ToolTipText : DEFAULT_FALSE_KEYS.ToolTipText;
-                        return key;
+                        return AppResources.GetString(key, string.Empty);
 
                 }
             }

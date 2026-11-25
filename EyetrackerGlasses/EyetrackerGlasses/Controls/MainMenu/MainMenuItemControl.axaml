@@ -3,7 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 			 xmlns:i="clr-namespace:Optris.Icons.Avalonia;assembly=Optris.Icons.Avalonia"
-			 xmlns:local="clr-namespace:NIRS_Demonstrator"
+			 xmlns:local="clr-namespace:EyetrackerGlasses"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="EyetrackerGlasses.MainMenuItemControl"
 			 Background="Transparent"

@@ -30,6 +30,7 @@ namespace EyetrackerGlasses
 
         private const string SETTINGS_DIR_NAME = ".sys";
         private const string REPORTS_DIR_NAME = "Reports";
+        private const string AI_DIR_NAME = "AI";
 
         private static readonly Lazy<AppConfig> _instance =
             new Lazy<AppConfig>(() => new AppConfig(), isThreadSafe: true);
@@ -73,6 +74,7 @@ namespace EyetrackerGlasses
 
         /// <summary>Каталог отчётов и выгрузок.</summary>
         public string ReportsDirectoryPath { get; private set; } = string.Empty;
+        public string AiDirectoryPath { get; private set; } = string.Empty;
 
         /// <summary>Текущие настройки приложения.</summary>
         public AppSettings Settings { get; private set; } = new AppSettings();
@@ -137,9 +139,11 @@ namespace EyetrackerGlasses
 
             SettingsDirectoryPath = BuildPath(root, SETTINGS_DIR_NAME);
             ReportsDirectoryPath = BuildPath(root, REPORTS_DIR_NAME);
+            AiDirectoryPath = BuildPath(root, AI_DIR_NAME);
 
             Directory.CreateDirectory(SettingsDirectoryPath);
             Directory.CreateDirectory(ReportsDirectoryPath);
+            Directory.CreateDirectory(AiDirectoryPath);
 
             _settingsStore = settingsStore
                 ?? new XmlSettingsStore<AppSettings>(Path.Combine(SettingsDirectoryPath, SETTINGS_FILE_NAME));

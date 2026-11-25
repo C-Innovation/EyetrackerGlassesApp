@@ -1,0 +1,51 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:EyetrackerGlasses"
+        >
+
+    <Styles.Resources>
+        <ControlTheme x:Key="{x:Type local:PillSwitch}" TargetType="local:PillSwitch">
+            <!-- Значения по умолчанию -->
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Black" />
+            <Setter Property="BorderThickness" Value="3" />
+            <Setter Property="Cursor" Value="Hand" />
+
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <!-- Viewbox обеспечивает автомасштабирование под заданный Width/Height -->
+                    <Viewbox Stretch="Uniform">
+                        <Border Width="110"
+                                Height="54"
+                                CornerRadius="27"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Ellipse Width="38"
+                                     Height="38"
+                                     HorizontalAlignment="Left"
+                                     VerticalAlignment="Center"
+                                     Fill="{TemplateBinding KnobBrush}"
+                                     Margin="{TemplateBinding KnobMargin}">
+                                <!-- Анимация переключения: движение и смена цвета -->
+                                <Ellipse.Transitions>
+                                    <Transitions>
+                                        <ThicknessTransition Property="Margin"
+                                                             Duration="0:0:0.22"
+                                                             Easing="CubicEaseOut" />
+                                        <BrushTransition Property="Fill"
+                                                         Duration="0:0:0.22" />
+                                    </Transitions>
+                                </Ellipse.Transitions>
+                            </Ellipse>
+                        </Border>
+                    </Viewbox>
+                </ControlTemplate>
+            </Setter>
+
+            <Style Selector="^:disabled">
+                <Setter Property="Opacity" Value="0.5" />
+            </Style>
+        </ControlTheme>
+    </Styles.Resources>
+</Styles>

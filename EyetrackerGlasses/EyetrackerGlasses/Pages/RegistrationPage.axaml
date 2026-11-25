@@ -139,21 +139,13 @@
                                                       Converter={StaticResource BooleanToPlayStopConverter},
                                                       ConverterParameter={x:Static converters:PlayStopConverterParameterType.ToolTip}}"
                                 Command="{Binding StartStopRegistrationCommand}"/>
+
                         <Button Classes="IconGrowButton"
                                 Grid.Column="1"
                                 Width="50"
                                 Height="50"
-                                Content="{StaticResource FA_StopIcon}"/>
-                        <Button Classes="IconGrowButton"
-                                Grid.Column="2"
-                                Width="50"
-                                Height="50"
-                                Content="{StaticResource FA_EyeSlashIcon}"/>
-                        <Button Classes="IconGrowButton"
-                                Grid.Column="3"
-                                Width="50"
-                                Height="50"
                                 Content="{StaticResource FA_CrosshairsIcon}"/>
+                                
                     </Grid>
                 </Grid>
             </ScrollViewer>
@@ -234,8 +226,38 @@
                                 Command="{Binding HideSettingsCommand}" />
                     </Grid>
                     <Grid x:Name="DisplaySettingsGrid" Grid.Row="1" 
-                            RowDefinitions="Auto" 
-                            RowSpacing="8" />
+                            RowDefinitions="Auto,Auto,Auto,Auto" 
+                            ColumnDefinitions="*,Auto"
+                            RowSpacing="8">
+                            <!-- Eyes detection control -->
+                            <TextBlock Grid.Column="0" 
+                                       Grid.Row="0" 
+                                       FontWeight="Bold"
+                                       FontSize="{StaticResource FontSizeAverage}"
+                                       Foreground="{DynamicResource Theme_ForegroundMainBrush}"
+                                       Text="{DynamicResource RegistrationPageSettingsEyesDetectionText}"
+                                       VerticalAlignment="Center"
+                                       Margin="15 0 0 0"/>
+                            <local:PillSwitch Grid.Column="1"
+                                                Grid.Row="0"
+                                                Height="30" 
+                                                ToggledCommand="{Binding EyesCentersShowCommand}"/>
+                            <TextBlock Grid.Column="0" 
+                                       Grid.Row="1" 
+                                       FontWeight="Bold"
+                                       FontSize="{StaticResource FontSizeAverage}"
+                                       Foreground="{DynamicResource Theme_ForegroundMainBrush}"
+                                       Text="{DynamicResource RegistrationPageSettingsTargetDetectionText}"
+                                       VerticalAlignment="Center"
+                                       Margin="15 0 0 0"/>
+                            <local:PillSwitch Grid.Column="1"
+                                              Grid.Row="1"
+                                              Height="30" 
+                                              ToggledCommand="{Binding TargetsCentersShowCommand}"/>
+
+                     </Grid>
+                       
+                        
                 </Grid>
             </ScrollViewer>
         </Border>

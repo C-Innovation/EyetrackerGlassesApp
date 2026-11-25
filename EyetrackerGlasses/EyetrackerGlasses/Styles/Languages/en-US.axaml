@@ -54,4 +54,11 @@
     <system:String x:Key="RegistrationHideText">Hide</system:String>
     <system:String x:Key="RegistrationEyesText">Eyes</system:String>
     <system:String x:Key="RegistrationSceneText">Scene</system:String>
+
+	<!-- Registration page content -->
+	<system:String x:Key="RegistrationPageHeaderText">Registration control</system:String>
+	<system:String x:Key="RegistrationPageStartRegistrationText">Start registration</system:String>
+	<system:String x:Key="RegistrationPageStopRegistrationText">Stop registration</system:String>
+	<system:String x:Key="RegistrationPageSettingsEyesDetectionText">Eyes Detection</system:String>
+	<system:String x:Key="RegistrationPageSettingsTargetDetectionText">Target Detection</system:String>
 </ResourceDictionary>
