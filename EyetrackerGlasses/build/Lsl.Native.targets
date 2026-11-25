@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <_LslRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</_LslRid>
+    <_LslRid Condition="'$(_LslRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</_LslRid>
+    <_LslLocalDll>$(MSBuildThisFileDirectory)../native/lsl/win-x64/lsl.dll</_LslLocalDll>
+    <_LslLegacyDll>$(MSBuildThisFileDirectory)../../../../workspace_Qt/glasses_pc_viewer/lsl/lsl_lib/liblsl64.dll</_LslLegacyDll>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(_LslRid)' == 'win-x64' and ('$(PlatformTarget)' == '' or '$(PlatformTarget)' == 'AnyCPU' or '$(PlatformTarget)' == 'x64')">
+    <LslNativeLibraryPath Condition="'$(LslNativeLibraryPath)' == '' and Exists('$(_LslLocalDll)')">$(_LslLocalDll)</LslNativeLibraryPath>
+    <LslNativeLibraryPath Condition="'$(LslNativeLibraryPath)' == '' and Exists('$(_LslLegacyDll)')">$(_LslLegacyDll)</LslNativeLibraryPath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(LslNativeLibraryPath)' != ''">
+    <Content Include="$(LslNativeLibraryPath)" Link="lsl.dll" TargetPath="lsl.dll"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

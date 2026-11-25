@@ -1,0 +1,228 @@
+<local:BasePage x:TypeArguments="vm:RegistrationPageViewModel"
+                xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:local="clr-namespace:EyetrackerGlasses"
+                xmlns:vm="clr-namespace:EyetrackerGlasses.ViewModels"
+                xmlns:converters="clr-namespace:EyetrackerGlasses.ValueConverters"
+                x:Class="EyetrackerGlasses.RegistrationPage"
+                x:DataType="vm:RegistrationPageViewModel">
+
+    <local:BasePage.Resources>
+        <converters:DrawerOffsetConverter x:Key="DrawerOffset" />
+        <converters:VideoHeightConverter x:Key="VideoHeight" />
+        <converters:VideoWidthConverter x:Key="VideoWidth" />
+    </local:BasePage.Resources>
+
+    <local:BasePage.Styles>
+        <Style Selector="Border.video">
+            <Setter Property="Background" Value="#11151A" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+        <Style Selector="Grid.singleView Border.video">
+            <Setter Property="CornerRadius" Value="0" />
+        </Style>
+        <Style Selector="ScrollViewer.registrationContent">
+            <Setter Property="Margin" Value="12,4,12,12" />
+        </Style>
+        <Style Selector="Grid.singleView ScrollViewer.registrationContent">
+            <Setter Property="Margin" Value="0" />
+        </Style>
+        <Style Selector="Border.settingsDrawer">
+            <Setter Property="MaxWidth" Value="420" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="Background" Value="{DynamicResource Theme_BackgroundMainBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme_BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1,0,0,0" />
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.22" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.settingsDrawer.open">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="Grid.singleView Border.settingsDrawer">
+            <Setter Property="MaxWidth" Value="Infinity" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+    </local:BasePage.Styles>
+
+    <Grid x:Name="PageLayout" Classes.singleView="{Binding IsSingleView}" ClipToBounds="True">
+        <Grid RowDefinitions="Auto,*" IsEnabled="{Binding !IsSettingsOpen}">
+            <Grid ColumnDefinitions="Auto,*" Margin="12" ColumnSpacing="12">
+                <Button VerticalAlignment="Top"
+                        Classes="IconGrowButton" Width="42" Height="42"
+                        Content="fa-regular fa-house"
+                        ToolTip.Tip="{DynamicResource RegistrationHomeText}"
+                        AutomationProperties.Name="{DynamicResource RegistrationHomeText}"
+                        Command="{Binding GoHomeCommand}">
+                    <Button.Template>
+                        <ControlTemplate>
+                            <Border Background="{TemplateBinding Background}">
+                                <!-- The installed Font Awesome Free provider has no regular house glyph. -->
+                                <Viewbox Width="22" Height="22">
+                                    <Path Data="M 2,10 L 12,2 22,10 M 5,8 L 5,21 10,21 10,14 14,14 14,21 19,21 19,8"
+                                          Stroke="{TemplateBinding Foreground}" StrokeThickness="2"
+                                          StrokeLineCap="Round" StrokeJoin="Round" />
+                                </Viewbox>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+                <WrapPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal"
+                           ItemSpacing="8" LineSpacing="6">
+                    <Button Classes="IconGrowButton" Width="42" Height="42"
+                            Content="fa-solid fa-screwdriver-wrench"
+                            ToolTip.Tip="{DynamicResource RegistrationSettingsText}"
+                            AutomationProperties.Name="{DynamicResource RegistrationSettingsText}"
+                            Command="{Binding ShowRegistrationSettingsCommand}" />
+                    <Button Classes="IconGrowButton" Width="42" Height="42"
+                            Content="fa-solid fa-tv"
+                            ToolTip.Tip="{DynamicResource RegistrationDisplaySettingsText}"
+                            AutomationProperties.Name="{DynamicResource RegistrationDisplaySettingsText}"
+                            Command="{Binding ShowDisplaySettingsCommand}" />
+                </WrapPanel>
+            </Grid>
+
+            <ScrollViewer x:Name="VideoScroll" Grid.Row="1" Classes="registrationContent"
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid x:Name="VideoLayout" RowDefinitions="Auto,Auto,Auto" RowSpacing="12"
+                      HorizontalAlignment="Center">
+                    <Grid.Width>
+                        <MultiBinding Converter="{StaticResource VideoWidth}">
+                            <Binding Path="#VideoScroll.Bounds.Width" />
+                            <Binding Path="#VideoScroll.Bounds.Height" />
+                            <Binding Path="MinimumVideoWidth" />
+                            <Binding Path="EyesHeightRatio" />
+                            <Binding Path="SceneHeightRatio" />
+                            <Binding Path="#VideoLayout.RowSpacing" />
+                        </MultiBinding>
+                    </Grid.Width>
+                    <Border x:Name="EyesViewport" Classes="video">
+                        <Border.Height>
+                            <MultiBinding Converter="{StaticResource VideoHeight}">
+                                <Binding Path="#VideoLayout.Width" />
+                                <Binding Path="EyesHeightRatio" />
+                            </MultiBinding>
+                        </Border.Height>
+                        <Image Source="{Binding EyesImage}" Stretch="Uniform"
+                               AutomationProperties.Name="{DynamicResource RegistrationEyesText}" />
+                    </Border>
+                    <Border x:Name="SceneViewport" Grid.Row="1" Classes="video">
+                        <Border.Height>
+                            <MultiBinding Converter="{StaticResource VideoHeight}">
+                                <Binding Path="#VideoLayout.Width" />
+                                <Binding Path="SceneHeightRatio" />
+                            </MultiBinding>
+                        </Border.Height>
+                        <Image Source="{Binding SceneImage}" Stretch="Uniform"
+                               AutomationProperties.Name="{DynamicResource RegistrationSceneText}" />
+                    </Border>
+
+                    <Grid x:Name="RegistrationControlsGrid" Grid.Row="2"
+                          RowDefinitions="Auto" ColumnDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="0" >
+                        <Button Classes="IconGrowButton"
+                                Grid.Column="0"
+                                Width="50"
+                                Height="50"
+                                Content="{StaticResource FA_PlayIcon}"/>
+                        <Button Classes="IconGrowButton"
+                                Grid.Column="1"
+                                Width="50"
+                                Height="50"
+                                Content="{StaticResource FA_StopIcon}"/>
+                        <Button Classes="IconGrowButton"
+                                Grid.Column="2"
+                                Width="50"
+                                Height="50"
+                                Content="{StaticResource FA_EyeSlashIcon}"/>
+                        <Button Classes="IconGrowButton"
+                                Grid.Column="3"
+                                Width="50"
+                                Height="50"
+                                Content="{StaticResource FA_CrosshairsIcon}"/>
+                    </Grid>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+
+        <Border Background="#66000000" IsVisible="{Binding IsSettingsOpen}" ZIndex="1" />
+
+        <Border x:Name="RegistrationDrawer" Classes="settingsDrawer"
+                Classes.open="{Binding IsRegistrationSettingsOpen}"
+                Width="{Binding #PageLayout.Bounds.Width}"
+                IsHitTestVisible="{Binding IsRegistrationSettingsOpen}"
+                IsEnabled="{Binding IsRegistrationSettingsOpen}" ZIndex="2">
+            <Border.RenderTransform>
+                <TranslateTransform>
+                    <TranslateTransform.X>
+                        <MultiBinding Converter="{StaticResource DrawerOffset}">
+                            <Binding Path="#RegistrationDrawer.IsEnabled" />
+                            <Binding Path="#RegistrationDrawer.Bounds.Width" />
+                        </MultiBinding>
+                    </TranslateTransform.X>
+                    <TranslateTransform.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="X" Duration="0:0:0.24" />
+                        </Transitions>
+                    </TranslateTransform.Transitions>
+                </TranslateTransform>
+            </Border.RenderTransform>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid Margin="16" RowDefinitions="Auto,Auto" RowSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBlock Text="{DynamicResource RegistrationSettingsText}"
+                                   FontSize="{StaticResource FontSizeLarge}" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <Button Grid.Column="1" Classes="IconGrowButton" Width="42" Height="42"
+                                Content="fa-solid fa-arrow-right"
+                                ToolTip.Tip="{DynamicResource RegistrationHideText}"
+                                AutomationProperties.Name="{DynamicResource RegistrationHideText}"
+                                Command="{Binding HideSettingsCommand}" />
+                    </Grid>
+                    <Grid x:Name="RegistrationSettingsGrid" Grid.Row="1" RowDefinitions="Auto" RowSpacing="8" />
+                </Grid>
+            </ScrollViewer>
+        </Border>
+
+        <Border x:Name="DisplayDrawer" Classes="settingsDrawer"
+                Classes.open="{Binding IsDisplaySettingsOpen}"
+                Width="{Binding #PageLayout.Bounds.Width}"
+                IsHitTestVisible="{Binding IsDisplaySettingsOpen}"
+                IsEnabled="{Binding IsDisplaySettingsOpen}" ZIndex="3">
+            <Border.RenderTransform>
+                <TranslateTransform>
+                    <TranslateTransform.X>
+                        <MultiBinding Converter="{StaticResource DrawerOffset}">
+                            <Binding Path="#DisplayDrawer.IsEnabled" />
+                            <Binding Path="#DisplayDrawer.Bounds.Width" />
+                        </MultiBinding>
+                    </TranslateTransform.X>
+                    <TranslateTransform.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="X" Duration="0:0:0.30" />
+                        </Transitions>
+                    </TranslateTransform.Transitions>
+                </TranslateTransform>
+            </Border.RenderTransform>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid Margin="16" RowDefinitions="Auto,Auto" RowSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBlock Text="{DynamicResource RegistrationDisplaySettingsText}"
+                                   FontSize="{StaticResource FontSizeLarge}" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <Button Grid.Column="1" Classes="IconGrowButton" Width="42" Height="42"
+                                Content="fa-solid fa-arrow-right"
+                                ToolTip.Tip="{DynamicResource RegistrationHideText}"
+                                AutomationProperties.Name="{DynamicResource RegistrationHideText}"
+                                Command="{Binding HideSettingsCommand}" />
+                    </Grid>
+                    <Grid x:Name="DisplaySettingsGrid" Grid.Row="1" RowDefinitions="Auto" RowSpacing="8" />
+                </Grid>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</local:BasePage>

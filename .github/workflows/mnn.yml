@@ -1,0 +1,133 @@
+name: MNN native builds
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/mnn.yml'
+      - 'EyetrackerGlasses/native/mnn/**'
+      - 'EyetrackerGlasses/build/Mnn.Native.targets'
+      - 'EyetrackerGlasses/EyetrackerGlasses.Mnn*/**'
+      - 'EyetrackerGlasses/EyetrackerGlasses/EyetrackerGlasses.csproj'
+      - 'EyetrackerGlasses/EyetrackerGlasses.*/*.csproj'
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { host: windows-2022, rid: win-x64 }
+          - { host: windows-2022, rid: win-arm64 }
+          - { host: ubuntu-22.04, rid: linux-x64 }
+          - { host: ubuntu-22.04, rid: linux-arm64 }
+          - { host: macos-15, rid: osx-arm64 }
+          - { host: macos-15, rid: osx-x64 }
+    runs-on: ${{ matrix.host }}
+    defaults:
+      run:
+        working-directory: EyetrackerGlasses
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - if: matrix.rid == 'linux-arm64'
+        run: sudo apt-get update && sudo apt-get install -y g++-aarch64-linux-gnu
+      - if: matrix.rid == 'win-x64' || matrix.rid == 'linux-x64' || matrix.rid == 'osx-arm64'
+        shell: bash
+        run: |
+          python native/mnn/build.py --rid ${{ matrix.rid }} --converter
+          python -m pip install onnx==1.19.1
+          python native/mnn/make_fixture.py artifacts/mnn/checks/fixture.onnx
+          converter=artifacts/mnn/tools/${{ matrix.rid }}/MNNConvert
+          if [[ "${{ matrix.rid }}" == win-x64 ]]; then converter="$converter.exe"; fi
+          "$converter" -f ONNX --modelFile artifacts/mnn/checks/fixture.onnx --MNNModel artifacts/mnn/checks/fixture.mnn
+          dotnet run --project EyetrackerGlasses.Mnn.Checks -c Release -p:EnableMnnNative=true -- artifacts/mnn/checks/fixture.mnn
+      - if: matrix.rid == 'win-arm64' || matrix.rid == 'linux-arm64' || matrix.rid == 'osx-x64'
+        run: python native/mnn/build.py --rid ${{ matrix.rid }}
+      - run: dotnet publish EyetrackerGlasses.Desktop -c Release -r ${{ matrix.rid }} --self-contained false -p:EnableMnnNative=true -o artifacts/mnn/deploy/desktop
+      - shell: bash
+        run: tar -czf artifacts/mnn/deploy/desktop-${{ matrix.rid }}.tar.gz -C artifacts/mnn/deploy/desktop .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mnn-${{ matrix.rid }}
+          path: |
+            EyetrackerGlasses/artifacts/mnn/runtimes/${{ matrix.rid }}
+            EyetrackerGlasses/artifacts/mnn/tools/${{ matrix.rid }}
+            EyetrackerGlasses/artifacts/mnn/deploy/desktop-${{ matrix.rid }}.tar.gz
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: EyetrackerGlasses
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: microsoft
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865"
+          dotnet workload restore EyetrackerGlasses.Android
+          python native/mnn/build.py --rid android-arm64 --ndk "$ANDROID_HOME/ndk/29.0.14206865"
+          python native/mnn/build.py --rid android-x64 --ndk "$ANDROID_HOME/ndk/29.0.14206865"
+          dotnet publish EyetrackerGlasses.Android -c Release -p:EnableMnnNative=true -o artifacts/mnn/deploy/android
+          python native/mnn/check_apk.py artifacts/mnn/deploy/android/*-Signed.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mnn-android
+          path: |
+            EyetrackerGlasses/artifacts/mnn/runtimes/android-*
+            EyetrackerGlasses/artifacts/mnn/deploy/android/*-Signed.apk
+          if-no-files-found: error
+
+  ios:
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [ios-arm64, iossimulator-arm64, iossimulator-x64]
+    defaults:
+      run:
+        working-directory: EyetrackerGlasses
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python native/mnn/build.py --rid ${{ matrix.rid }}
+      - run: |
+          dotnet new globaljson --sdk-version 10.0.403
+          dotnet workload install ios --version 10.0.403
+          dotnet build EyetrackerGlasses.iOS -c Release -r ${{ matrix.rid }} -p:EnableMnnNative=true -p:EnableCodeSigning=false -p:BuildIpa=false
+          app=$(find EyetrackerGlasses.iOS/bin/Release -type d -name 'EyetrackerGlasses.iOS.app' -print -quit)
+          test -n "$app"
+          mkdir -p artifacts/mnn/deploy
+          tar -czf artifacts/mnn/deploy/app-${{ matrix.rid }}.tar.gz -C "$(dirname "$app")" "$(basename "$app")"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mnn-${{ matrix.rid }}
+          path: |
+            EyetrackerGlasses/artifacts/mnn/runtimes/${{ matrix.rid }}
+            EyetrackerGlasses/artifacts/mnn/deploy/app-${{ matrix.rid }}.tar.gz
+          if-no-files-found: error
