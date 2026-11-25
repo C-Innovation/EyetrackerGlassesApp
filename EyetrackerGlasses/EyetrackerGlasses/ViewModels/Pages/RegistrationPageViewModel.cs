@@ -31,6 +31,27 @@ public sealed class RegistrationPageViewModel : ViewModelBase
     private WriteableBitmap? _sceneImage;
     private bool _disposed;
 
+    #region MVVM Properties
+
+    private bool _IsRegistrationStoped = true;
+
+    public bool IsRegistrationStoped
+    {
+        get => _IsRegistrationStoped;
+        set
+        {
+            if (_IsRegistrationStoped != value)
+            {
+
+                _IsRegistrationStoped = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    #endregion
+
+
     Mat img1;
     Mat img2;
 
@@ -42,12 +63,15 @@ public sealed class RegistrationPageViewModel : ViewModelBase
         ShowRegistrationSettingsCommand = new RelayCommand(() => SetMenu(SettingsMenu.Registration));
         ShowDisplaySettingsCommand = new RelayCommand(() => SetMenu(SettingsMenu.Display));
         HideSettingsCommand = new RelayCommand(() => SetMenu(SettingsMenu.None));
+        StartStopRegistrationCommand = new AsyncRelayCommand(StartStopRegistrationCommandAction);
 
-        img1 = Cv2.ImRead("E:\\workspace_Avalonia\\EyetrackerGlasses\\EyetrackerGlasses\\Models\\test003.jpg");
-        img2 = Cv2.ImRead("E:\\workspace_Avalonia\\EyetrackerGlasses\\EyetrackerGlasses\\Models\\test001.jpg");
+        img1 = Cv2.ImRead("D:\\workspace_Avalonia\\EyetrackerGlassesApp\\EyetrackerGlasses\\Models\\test003.jpg");
+        img2 = Cv2.ImRead("D:\\workspace_Avalonia\\EyetrackerGlassesApp\\EyetrackerGlasses\\Models\\test001.jpg");
 
         UpdateVideoFramesAsync(img1, img2);
     }
+
+
 
     public bool IsSingleView { get; }
     public double MinimumVideoWidth => IsSingleView ? 0 : ReferenceVideoWidth / 2;
@@ -63,6 +87,7 @@ public sealed class RegistrationPageViewModel : ViewModelBase
     public ICommand ShowRegistrationSettingsCommand { get; }
     public ICommand ShowDisplaySettingsCommand { get; }
     public ICommand HideSettingsCommand { get; }
+    public ICommand StartStopRegistrationCommand { get; }
 
     private void SetMenu(SettingsMenu menu)
     {
@@ -109,6 +134,11 @@ public sealed class RegistrationPageViewModel : ViewModelBase
             ReplaceImage(ref _eyesImage, eyesImage, nameof(EyesImage));
             ReplaceImage(ref _sceneImage, sceneImage, nameof(SceneImage));
         });
+    }
+
+    private async Task StartStopRegistrationCommandAction()
+    {
+        IsRegistrationStoped ^= true;
     }
 
     protected override void Dispose(bool disposing)

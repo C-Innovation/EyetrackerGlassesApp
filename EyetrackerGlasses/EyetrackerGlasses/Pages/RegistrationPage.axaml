@@ -11,6 +11,7 @@
         <converters:DrawerOffsetConverter x:Key="DrawerOffset" />
         <converters:VideoHeightConverter x:Key="VideoHeight" />
         <converters:VideoWidthConverter x:Key="VideoWidth" />
+        <converters:BooleanToFaIconPlayStopConverter x:Key="BooleanToPlayStopConverter" />
     </local:BasePage.Resources>
 
     <local:BasePage.Styles>
@@ -128,7 +129,16 @@
                                 Grid.Column="0"
                                 Width="50"
                                 Height="50"
-                                Content="{StaticResource FA_PlayIcon}"/>
+                                Content="{Binding Path=IsRegistrationStoped, 
+                                                  Converter={StaticResource BooleanToPlayStopConverter},
+                                                  ConverterParameter={x:Static converters:PlayStopConverterParameterType.Content}}"
+                                Foreground="{Binding Path=IsRegistrationStoped, 
+                                                     Converter={StaticResource BooleanToPlayStopConverter},
+                                                     ConverterParameter={x:Static converters:PlayStopConverterParameterType.Foreground}}"
+                                ToolTip.Tip="{Binding Path=IsRegistrationStoped, 
+                                                      Converter={StaticResource BooleanToPlayStopConverter},
+                                                      ConverterParameter={x:Static converters:PlayStopConverterParameterType.ToolTip}}"
+                                Command="{Binding StartStopRegistrationCommand}"/>
                         <Button Classes="IconGrowButton"
                                 Grid.Column="1"
                                 Width="50"
@@ -183,7 +193,10 @@
                                 AutomationProperties.Name="{DynamicResource RegistrationHideText}"
                                 Command="{Binding HideSettingsCommand}" />
                     </Grid>
-                    <Grid x:Name="RegistrationSettingsGrid" Grid.Row="1" RowDefinitions="Auto" RowSpacing="8" />
+                    <Grid x:Name="RegistrationSettingsGrid" 
+                        Grid.Row="1" 
+                        RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" 
+                        RowSpacing="8" />
                 </Grid>
             </ScrollViewer>
         </Border>
@@ -220,7 +233,9 @@
                                 AutomationProperties.Name="{DynamicResource RegistrationHideText}"
                                 Command="{Binding HideSettingsCommand}" />
                     </Grid>
-                    <Grid x:Name="DisplaySettingsGrid" Grid.Row="1" RowDefinitions="Auto" RowSpacing="8" />
+                    <Grid x:Name="DisplaySettingsGrid" Grid.Row="1" 
+                            RowDefinitions="Auto" 
+                            RowSpacing="8" />
                 </Grid>
             </ScrollViewer>
         </Border>

@@ -1,4 +1,5 @@
 ﻿using Avalonia.Data;
+using Avalonia.Media;
 using System;
 using System.Globalization;
 
@@ -135,6 +136,54 @@ namespace EyetrackerGlasses.ValueConverters
 
             // Иконка хранится как строка в Styles/Fonts.axaml.
             return AppResources.GetString(key, string.Empty);
+        }
+
+        public override object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            return BindingOperations.DoNothing;
+        }
+    }
+
+    public class BooleanToFaIconPlayStopConverter : BaseValueConverter<BooleanToFaIconPlayStopConverter>
+    {
+        private PlayStopConverterData DEFAULT_TRUE_KEYS = new PlayStopConverterData { ContentFA = "FA_PlayIcon", ContentForeground = Brushes.Green, ToolTipText = "test_run" };
+        private PlayStopConverterData DEFAULT_FALSE_KEYS = new PlayStopConverterData { ContentFA = "FA_StopIcon", ContentForeground = Brushes.Red, ToolTipText = "test_stop" };
+
+        public override object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            //string trueKey = DEFAULT_TRUE_KEY;
+            //string falseKey = DEFAULT_FALSE_KEY;
+            bool flag = value is bool b && b;
+            string key;
+            IBrush? brush;
+            if (parameter is PlayStopConverterParameterType type)
+            {
+                //string[] parts = spec.Split(';', StringSplitOptions.TrimEntries);
+                //if (parts.Length > 0 && parts[0].Length > 0)
+                //    trueKey = parts[0];
+                //if (parts.Length > 1 && parts[1].Length > 0)
+                //    falseKey = parts[1];
+                
+                switch (type)
+                {
+                    case PlayStopConverterParameterType.Content:
+
+                        key = flag ? DEFAULT_TRUE_KEYS.ContentFA : DEFAULT_FALSE_KEYS.ContentFA;
+                        return AppResources.GetString(key, string.Empty);
+
+                    case PlayStopConverterParameterType.Foreground:
+                        brush = flag ? DEFAULT_TRUE_KEYS.ContentForeground : DEFAULT_FALSE_KEYS.ContentForeground;
+                        return brush;
+
+                    case PlayStopConverterParameterType.ToolTip:
+                        key = flag ? DEFAULT_TRUE_KEYS.ToolTipText : DEFAULT_FALSE_KEYS.ToolTipText;
+                        return key;
+
+                }
+            }
+
+            // Иконка хранится как строка в Styles/Fonts.axaml.
+            return BindingOperations.DoNothing;
         }
 
         public override object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
