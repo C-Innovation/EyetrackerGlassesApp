@@ -52,8 +52,48 @@
     </local:BasePage.Styles>
 
     <Grid x:Name="PageLayout" Classes.singleView="{Binding IsSingleView}" ClipToBounds="True">
+        <Grid x:Name="AwaitGrid" 
+              RowDefinitions="*,Auto,*"
+              ColumnDefinitions="*,Auto,*"
+              Background="#AF000000" 
+              ZIndex="10"
+              
+              Width="{Binding #PageLayout.Bounds.Width}"
+              Height="{Binding #PageLayout.Bounds.Height}"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              IsVisible="{Binding IsAwaitScreenVisible}">
+
+            <StackPanel Grid.Row="1" 
+                        Grid.Column="1" 
+                        Orientation="Vertical" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+
+            <TextBlock FontWeight="Bold"
+                       Foreground="#FFE46B00"
+                       TextAlignment="Center"
+					   TextWrapping="Wrap"
+                       FontSize="{StaticResource FontSizeXXLarge}"
+                       Text="{Binding ActiveDeviceName}"/>
+
+            <local:LoadingIndicatorV3 Width="200" Height="200"
+									LineColor="#FFE46B00"
+									LineThickness="8"
+									BackgroundColor="Transparent" 
+                                      />
+            <TextBlock FontWeight="Bold"
+                       FontStyle="Italic"
+                       Foreground="#FFE46B00"
+                       TextAlignment="Center"
+					   TextWrapping="Wrap"
+                       FontSize="{StaticResource FontSizeXLarge}"
+                       Text="{Binding AwaitScreenText}"/>
+            </StackPanel>
+            
+        </Grid>
         <Grid RowDefinitions="Auto,*" IsEnabled="{Binding !IsSettingsOpen}">
-            <Grid ColumnDefinitions="Auto,*" Margin="12" ColumnSpacing="12">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="12" ColumnSpacing="12">
                 <Button VerticalAlignment="Top"
                         Classes="IconGrowButton" Width="42" Height="42"
                         Content="fa-regular fa-house"
@@ -73,7 +113,14 @@
                         </ControlTemplate>
                     </Button.Template>
                 </Button>
-                <WrapPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal"
+                <TextBlock Grid.Column="1"
+					   Text="{DynamicResource RegistrationPageHeaderText}"
+					   FontSize="{StaticResource FontSizeXLarge}"
+					   FontWeight="Bold"
+					   VerticalAlignment="Center"
+                       HorizontalAlignment="Center"
+					   Foreground="{DynamicResource Theme_ForegroundMainBrush}" />
+                <WrapPanel Grid.Column="2" HorizontalAlignment="Right" Orientation="Horizontal"
                            ItemSpacing="8" LineSpacing="6">
                     <Button Classes="IconGrowButton" Width="42" Height="42"
                             Content="fa-solid fa-screwdriver-wrench"
@@ -145,6 +192,24 @@
                                 Width="50"
                                 Height="50"
                                 Content="{StaticResource FA_CrosshairsIcon}"/>
+
+                        <ComboBox Grid.Column="2"
+                                    Foreground="{DynamicResource Theme_ForegroundMainBrush}"
+                                    FontSize="{StaticResource FontSizeLarge}"
+                                    FontWeight="Bold" 
+                                    VerticalAlignment="Center"
+                                    ItemsSource="{Binding DeviceHostNames}"
+                                    SelectedIndex="{Binding DeviceSelectedIndex, Mode=TwoWay}"
+                                    Width="170"/>
+
+                        <Button Classes="IconGrowButton"
+                                Grid.Column="3"
+                                Width="50"
+                                Height="50"
+                                Content="{StaticResource FA_SquareUpRightIcon}"
+                                ToolTip.Tip="{DynamicResource RegistrationPageConnectToRegistratorText}"
+                                Command="{Binding ConnectToRegistratorCommand}"/>
+
                                 
                     </Grid>
                 </Grid>
@@ -241,6 +306,7 @@
                             <local:PillSwitch Grid.Column="1"
                                                 Grid.Row="0"
                                                 Height="30" 
+                                                BorderBrush="{DynamicResource Theme_ForegroundMainBrush}"
                                                 ToggledCommand="{Binding EyesCentersShowCommand}"/>
                             <TextBlock Grid.Column="0" 
                                        Grid.Row="1" 
@@ -253,6 +319,7 @@
                             <local:PillSwitch Grid.Column="1"
                                               Grid.Row="1"
                                               Height="30" 
+                                              BorderBrush="{DynamicResource Theme_ForegroundMainBrush}"
                                               ToggledCommand="{Binding TargetsCentersShowCommand}"/>
 
                      </Grid>
@@ -261,5 +328,6 @@
                 </Grid>
             </ScrollViewer>
         </Border>
+        
     </Grid>
 </local:BasePage>

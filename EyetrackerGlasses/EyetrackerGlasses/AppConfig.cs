@@ -24,6 +24,7 @@ namespace EyetrackerGlasses
 
         /// <summary>Имя файла настроек.</summary>
         public const string SETTINGS_FILE_NAME = "settings.xml";
+        public const string DVICES_FILE_NAME = "devices.xml";
 
         /// <summary>Имя файла журнала.</summary>
         public const string LOG_FILE_NAME = "log.txt";
@@ -57,6 +58,7 @@ namespace EyetrackerGlasses
         private ResourceDictionary? _appliedLanguage;
 
         private ISettingsStore<AppSettings>? _settingsStore;
+        private ISettingsStore<EyetrackerDevices> _devicesStore;
         private bool _isDisposed;
 
         #endregion
@@ -78,6 +80,7 @@ namespace EyetrackerGlasses
 
         /// <summary>Текущие настройки приложения.</summary>
         public AppSettings Settings { get; private set; } = new AppSettings();
+        public EyetrackerDevices Devices { get; private set; } = new EyetrackerDevices();
 
         /// <summary>Ключ активной цветовой темы.</summary>
         public string CurrentThemeKey { get; private set; } = string.Empty;
@@ -127,7 +130,7 @@ namespace EyetrackerGlasses
         /// <param name="settingsStore">
         /// Хранилище настроек. <c>null</c> — XML-файл в каталоге настроек.
         /// </param>
-        public void Initialize(string appName, string companyName = "", ISettingsStore<AppSettings>? settingsStore = null)
+        public void Initialize(string appName, string companyName = "", ISettingsStore<AppSettings>? settingsStore = null, ISettingsStore<EyetrackerDevices>? devicesStore = null )
         {
             if (string.IsNullOrWhiteSpace(appName))
                 throw new ArgumentException("Имя приложения не задано.", nameof(appName));
@@ -154,6 +157,14 @@ namespace EyetrackerGlasses
             _settingsStore.Write(Settings);
 
             ApplySavedThemeAndLanguage();
+
+            _devicesStore = devicesStore
+               ?? new XmlSettingsStore<EyetrackerDevices>(Path.Combine(SettingsDirectoryPath, DVICES_FILE_NAME));
+
+            Devices = _devicesStore.Read() ?? new EyetrackerDevices();
+            _devicesStore.Write(Devices);
+
+            AddTestDevelopDevice();
         }
 
         /// <summary>
@@ -331,6 +342,46 @@ namespace EyetrackerGlasses
         public bool SaveSettings()
         {
             return _settingsStore?.Write(Settings) ?? false;
+        }
+
+        public bool SaveDevices()
+        {
+            return _devicesStore?.Write(Devices) ?? false;
+        }
+
+        public void AddTestDevelopDevice()
+        {
+            if(Devices.Devices.Count == 0)
+            {
+                EyetrackerDevice dev = new EyetrackerDevice()
+                {
+                    HostName = "eg00s0000",
+                    GroupLSL = "GroupE",
+                    UserLSL = "user0",
+                    AiModels = new List<string> { "StartTarget.mnn", "yolov26n.mnn" }
+                };
+                string modelPath = "";
+                foreach(string name in dev.AiModels)
+                {
+                    modelPath = Path.Combine(AiDirectoryPath, (name + ".xml"));
+                    if (!File.Exists(modelPath))
+                    {
+                        AiModelParams modelParams = new AiModelParams()
+                        {
+                            ModelName = name,
+                            Height = (name.Equals("StartTarget.mnn")) ? 352 : 640,
+                            Width = 640,
+                            Channels = 3,
+                            MaxBatchSize = 1,
+                            NumClasses = (name.Equals("StartTarget.mnn")) ? 1 : 80
+                        };
+                        XmlSerialization.Serialize(modelPath, modelParams);
+                    }
+                    
+                }
+                Devices.Devices.Add(dev);
+                SaveDevices();
+            }
         }
 
         #endregion

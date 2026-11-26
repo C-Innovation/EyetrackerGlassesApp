@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace EyetrackerGlasses.Core
@@ -41,5 +42,7 @@ namespace EyetrackerGlasses.Core
 
             return XmlSerialization.Serialize(_path, settings);
         }
+
+       
     }
 }

@@ -33,6 +33,8 @@ namespace EyetrackerGlasses.ViewModels
 
 
         public ICommand GoToRegistrationPageCommand {  get; }
+        public ICommand GoToViewerPageCommand {  get; }
+        public ICommand GoToDevicesPageCommand {  get; }
         private string _statusText = string.Empty;
 
         /// <summary>

@@ -43,6 +43,7 @@
 	<system:String x:Key="FA_AngleDownIcon">fa-solid fa-angle-down</system:String>
 	<system:String x:Key="FA_HouseIcon">fa-solid fa-house</system:String>
 	<system:String x:Key="FA_BarsIcon">fa-solid fa-bars</system:String>
+	<system:String x:Key="FA_PhotoFilmIcon">fa-solid fa-photo-film</system:String>
 
 	<!-- Состояние и переключатели -->
 	<system:String x:Key="FA_SquareIcon">fa-regular fa-square</system:String>
@@ -53,6 +54,7 @@
 	<system:String x:Key="FA_EyeSlashIcon">fa-solid fa-eye-slash</system:String>
 	<system:String x:Key="FA_CircleInfoIcon">fa-solid fa-circle-info</system:String>
 	<system:String x:Key="FA_TriangleWarningIcon">fa-solid fa-triangle-exclamation</system:String>
+	<system:String x:Key="FA_SquareUpRightIcon">fa-solid fa-square-up-right</system:String>
 
 	<!-- Разделы приложения -->
 	<system:String x:Key="FA_GearIcon">fa-solid fa-gear</system:String>

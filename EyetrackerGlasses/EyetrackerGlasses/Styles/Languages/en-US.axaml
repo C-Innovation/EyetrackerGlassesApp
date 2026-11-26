@@ -47,18 +47,33 @@
 	<system:String x:Key="WelcomeHintText">Pages, themes, languages, dialogs and logging are already wired up.</system:String>
 	<system:String x:Key="ShowDialogText">Show a dialog</system:String>
 	<system:String x:Key="DialogQuestionText">Dialogs work. Close this one?</system:String>
-	<system:String x:Key="MainMenuRegistrationHeaderText">Registration</system:String>
     <system:String x:Key="RegistrationHomeText">Home</system:String>
     <system:String x:Key="RegistrationSettingsText">Registration settings</system:String>
     <system:String x:Key="RegistrationDisplaySettingsText">Display settings</system:String>
     <system:String x:Key="RegistrationHideText">Hide</system:String>
     <system:String x:Key="RegistrationEyesText">Eyes</system:String>
     <system:String x:Key="RegistrationSceneText">Scene</system:String>
+	<system:String x:Key="MainMenuRegistrationHeaderText">Registration</system:String>
+	<system:String x:Key="MainMenuPlayerHeaderText">Player</system:String>
+	<system:String x:Key="MainMenuDevicesHeaderText">Devices</system:String>
 
 	<!-- Registration page content -->
 	<system:String x:Key="RegistrationPageHeaderText">Registration control</system:String>
 	<system:String x:Key="RegistrationPageStartRegistrationText">Start registration</system:String>
 	<system:String x:Key="RegistrationPageStopRegistrationText">Stop registration</system:String>
+	<system:String x:Key="RegistrationPageConnectToRegistratorText">Connect</system:String>
+
 	<system:String x:Key="RegistrationPageSettingsEyesDetectionText">Eyes Detection</system:String>
 	<system:String x:Key="RegistrationPageSettingsTargetDetectionText">Target Detection</system:String>
+
+	<system:String x:Key="RegistrationPageDialogUnableToConnectText">Failed to connect to the recorder.</system:String>
+
+	
+
+	<!-- Await screen texts -->
+	<system:String x:Key="RegistrationAwaitConnectionText">Connecting to the logger...</system:String>
+	<system:String x:Key="RegistrationAwaitRegistrationStatusText">Retrieving logging status...</system:String>
+	<system:String x:Key="RegistrationAwaitRegistratorInfoText">Retrieving logger data...</system:String>
+	<system:String x:Key="RegistrationAwaitStartRegistrationText">Starting logging...</system:String>
+	<system:String x:Key="RegistrationAwaitStopRegistrationText">Stopping logging...</system:String>
 </ResourceDictionary>

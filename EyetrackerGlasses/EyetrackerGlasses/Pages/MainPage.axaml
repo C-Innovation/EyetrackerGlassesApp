@@ -30,13 +30,14 @@
 		</Grid>
 
 		<!-- Содержимое страницы: замените своим -->
-		<StackPanel Grid.Row="1"
+		<Grid Grid.Row="1"
+			 ColumnDefinitions="Auto,Auto"
+			 RowDefinitions="Auto,Auto"
 					VerticalAlignment="Center"
 					HorizontalAlignment="Center"
-					Spacing="16"
 					MaxWidth="520">
 
-			<TextBlock Text="{DynamicResource WelcomeText}"
+			<!--<TextBlock Text="{DynamicResource WelcomeText}"
 					   FontSize="{StaticResource FontSizeXLarge}"
 					   FontWeight="Bold"
 					   TextAlignment="Center"
@@ -47,17 +48,30 @@
 					   FontSize="{StaticResource FontSizeRegular}"
 					   TextAlignment="Center"
 					   TextWrapping="Wrap"
-					   Foreground="{DynamicResource Theme_ForegroundSecondaryBrush}" />
-			<local:MainMenuItemControl Icon="fa-solid fa-eye" 
+					   Foreground="{DynamicResource Theme_ForegroundSecondaryBrush}" />-->
+			<local:MainMenuItemControl Grid.Row="0" Grid.Column="0" 
+									   Icon="fa-solid fa-eye" 
 									   Height="200"
                                        Width="170"
 									   Header="{DynamicResource MainMenuRegistrationHeaderText}"
 									   Command="{Binding GoToRegistrationPageCommand}"/>
-			<Button Classes="Regular"
+			<local:MainMenuItemControl Grid.Row="0" Grid.Column="1" 
+									   Icon="fa-solid fa-photo-film" 
+									   Height="200"
+                                       Width="170"
+									   Header="{DynamicResource MainMenuPlayerHeaderText}"
+									   Command="{Binding GoToViewerPageCommand}"/>
+			<local:MainMenuItemControl Grid.Row="1" Grid.Column="0" 
+									   Icon="fa-solid fa-microchip" 
+									   Height="200"
+                                       Width="170"
+									   Header="{DynamicResource MainMenuDevicesHeaderText}"
+									   Command="{Binding GoToDevicesPageCommand}"/>
+			<!--<Button Classes="Regular"
 					HorizontalAlignment="Center"
 					Content="{DynamicResource ShowDialogText}"
-					Command="{Binding ShowDialogCommand}" />
-		</StackPanel>
+					Command="{Binding ShowDialogCommand}" />-->
+		</Grid>
 
 		<TextBlock Grid.Row="2"
 				   Text="{Binding StatusText}"

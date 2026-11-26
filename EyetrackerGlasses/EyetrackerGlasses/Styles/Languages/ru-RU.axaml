@@ -46,6 +46,8 @@
 	<system:String x:Key="ShowDialogText">Показать диалог</system:String>
 	<system:String x:Key="DialogQuestionText">Диалоги работают. Закрыть это окно?</system:String>
 	<system:String x:Key="MainMenuRegistrationHeaderText">Регистрация</system:String>
+	<system:String x:Key="MainMenuPlayerHeaderText">Просмотр</system:String>
+	<system:String x:Key="MainMenuDevicesHeaderText">Устройства</system:String>
 
 
     <system:String x:Key="RegistrationHomeText">Домой</system:String>
@@ -59,6 +61,19 @@
 	<system:String x:Key="RegistrationPageHeaderText">Управление регистрацией</system:String>
 	<system:String x:Key="RegistrationPageStartRegistrationText">Запуск регистрации</system:String>
 	<system:String x:Key="RegistrationPageStopRegistrationText">Останов регистрации</system:String>
+	<system:String x:Key="RegistrationPageConnectToRegistratorText">Подключение</system:String>
+
 	<system:String x:Key="RegistrationPageSettingsEyesDetectionText">Обнаружение глаз</system:String>
 	<system:String x:Key="RegistrationPageSettingsTargetDetectionText">Обнаружение мишени</system:String>
+
+	<system:String x:Key="RegistrationPageDialogUnableToConnectText">Не удалось выполнить подключение к регистратору.</system:String>
+
+	<!-- Await screen texts -->
+	<system:String x:Key="RegistrationAwaitConnectionText">Подключение к регистратору...</system:String>
+	<system:String x:Key="RegistrationAwaitRegistrationStatusText">Получение состояния регистрации...</system:String>
+	<system:String x:Key="RegistrationAwaitRegistratorInfoText">Получение данных о регистраторе...</system:String>
+	<system:String x:Key="RegistrationAwaitStartRegistrationText">Запуск регистрации...</system:String>
+	<system:String x:Key="RegistrationAwaitStopRegistrationText">Остановка регистрации...</system:String>
+
+
 </ResourceDictionary>

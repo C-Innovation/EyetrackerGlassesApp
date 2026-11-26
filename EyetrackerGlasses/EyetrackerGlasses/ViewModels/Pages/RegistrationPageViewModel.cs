@@ -4,11 +4,17 @@ using Avalonia.Controls.Documents;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using EyetrackerGlasses.Core;
+using EyetrackerGlasses.Helpers.Net.LSL;
+using EyetrackerGlasses.Helpers.Net.Rpc;
 using EyetrackerGlasses.Mnn;
 using EyetrackerGlasses.ValueConverters;
 using OpenCvSharp;
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using TrtDetector.Models;
@@ -37,10 +43,11 @@ public sealed class RegistrationPageViewModel : ViewModelBase
     private bool _disposed;
 
     private MnnInferenceEngine _EyesMNN;
-    private MnnInferenceEngine _TargetMNN;
-    private MnnInferenceEngine _CustomMNN;
+    private List<MnnInferenceEngine> _SceneCustomMNN;
 
 
+    private EyetrackerDevices _Devices;
+    private EyeTrackerRpcClient _EyeTrackerRpcClient;
     #region MVVM Properties
 
     private bool _IsRegistrationStoped = true;
@@ -59,6 +66,70 @@ public sealed class RegistrationPageViewModel : ViewModelBase
         }
     }
 
+    private bool _IsAwaitScreenVisible = false;
+
+    public bool IsAwaitScreenVisible
+    {
+        get => _IsAwaitScreenVisible;
+        set
+        {
+            if (_IsAwaitScreenVisible != value)
+            {
+                _IsAwaitScreenVisible = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private string _AwaitScreenText = string.Empty;
+
+    public string AwaitScreenText
+    {
+        get => _AwaitScreenText;
+        set
+        {
+            if (_AwaitScreenText != value)
+            {
+                _AwaitScreenText = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private string _ActiveDeviceName = string.Empty;
+
+    public string ActiveDeviceName
+    {
+        get => _ActiveDeviceName;
+        set
+        {
+            if (_ActiveDeviceName != value)
+            {
+                _ActiveDeviceName = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private ObservableCollection<string> _DeviceHostNames;
+
+    public ObservableCollection<string> DeviceHostNames
+    {
+        get => _DeviceHostNames;
+        set => SetProperty(ref _DeviceHostNames, value);
+    }
+
+    private int _DeviceSelectedIndex = 0;
+
+    public int DeviceSelectedIndex
+    {
+        get => _DeviceSelectedIndex;
+        set
+        {
+            _DeviceSelectedIndex = value;
+            OnPropertyChanged();
+        }
+    }
 
 
     #endregion
@@ -78,16 +149,28 @@ public sealed class RegistrationPageViewModel : ViewModelBase
         StartStopRegistrationCommand = new AsyncRelayCommand(StartStopRegistrationCommandAction);
         EyesCentersShowCommand = new AsyncRelayParameterizedCommand(EyesCentersShowCommandActionAsync);
         TargetsCentersShowCommand = new AsyncRelayParameterizedCommand(TargetsCentersShowCommandActionAsync);
+        ConnectToRegistratorCommand = new AsyncRelayCommand(ConnectToRegistratorCommandActionAsync);
 
-        LoadModels();
+
+        _SceneCustomMNN = new List<MnnInferenceEngine>();
+        _Devices = AppConfig.GetInstance().Devices;
+        List<string> devices = new List<string>();
+        foreach (var device in _Devices.Devices)
+        {
+            devices.Add(device.HostName);
+        }
+        DeviceHostNames = new ObservableCollection<string>(devices);
+        DeviceSelectedIndex = 0;
+        
 
         img1 = Cv2.ImRead(Path.Combine(AppConfig.GetInstance().AiDirectoryPath, "TMP", "test003.jpg"));
         img2 = Cv2.ImRead(Path.Combine(AppConfig.GetInstance().AiDirectoryPath, "TMP", "test001.jpg"));
 
         UpdateVideoFramesAsync(img1, img2);
+        //TestLoad();
     }
 
-
+    
 
     public bool IsSingleView { get; }
     public double MinimumVideoWidth => IsSingleView ? 0 : ReferenceVideoWidth / 2;
@@ -106,6 +189,7 @@ public sealed class RegistrationPageViewModel : ViewModelBase
     public ICommand StartStopRegistrationCommand { get; }
     public ICommand EyesCentersShowCommand { get; }
     public ICommand TargetsCentersShowCommand { get; }
+    public ICommand ConnectToRegistratorCommand { get; }
 
     private void SetMenu(SettingsMenu menu)
     {
@@ -221,8 +305,11 @@ public sealed class RegistrationPageViewModel : ViewModelBase
             
             if(state)
             {
-                FrameResult result = await Task.Run(() => _EyesMNN.Run(img));
-                img = BBoxDrawer.AddBBox(img, result);
+                if (_EyesMNN != null)
+                {
+                    FrameResult result = await Task.Run(() => _EyesMNN.Run(img));
+                    img = BBoxDrawer.AddBBox(img, result);
+                }
             }
             
 
@@ -238,15 +325,59 @@ public sealed class RegistrationPageViewModel : ViewModelBase
             Mat img = Cv2.ImRead(Path.Combine(AppConfig.GetInstance().AiDirectoryPath, "TMP", "test001.jpg"));
             if (state)
             {
-                FrameResult result1 = await Task.Run(() => _TargetMNN.Run(img));
-                FrameResult result2 = await Task.Run(() => _CustomMNN.Run(img));
-                img = BBoxDrawer.AddBBox(img, result1);
-                img = BBoxDrawer.AddBBox(img, result2);
+                foreach (var model in _SceneCustomMNN)
+                {
+                    FrameResult result = await Task.Run(() => model.Run(img));
+                    img = BBoxDrawer.AddBBox(img, result);
+                }
             }
 
 
             await UpdateSceneVideoFrameAsync(img);
         }
+    }
+
+    private async Task ConnectToRegistratorCommandActionAsync()
+    {
+        string awaittext = string.Empty;
+        ActiveDeviceName = _Devices.Devices[DeviceSelectedIndex].HostName;
+        IsAwaitScreenVisible = true;
+        AwaitScreenText = AppResources.GetString("RegistrationAwaitConnectionText", string.Empty);
+        int streamsCount = await ScanLslAsync (CancellationToken.None);
+        if(streamsCount < 2)
+        {
+            AwaitScreenText = string.Empty;
+            IsAwaitScreenVisible = false;
+            await ShowErrorDialog(AppResources.GetString("RegistrationPageDialogUnableToConnectText", "Error"));
+            return;
+        }
+
+        AwaitScreenText = AppResources.GetString("RegistrationAwaitRegistrationStatusText", string.Empty);
+        _EyeTrackerRpcClient = new EyeTrackerRpcClient(_Devices.Devices[DeviceSelectedIndex].HostName);
+        await _EyeTrackerRpcClient.ConnectAsync();
+        var registrationState = await _EyeTrackerRpcClient.GetExaminationStateAsync();
+
+        if (registrationState == null)
+        {
+            AwaitScreenText = string.Empty;
+            IsAwaitScreenVisible = false;
+            // TODO: Add message dialog with error
+            return;
+        }
+        LoadModels(_Devices.Devices[DeviceSelectedIndex].HostName);
+        IsRegistrationStoped = !registrationState.IsRunning;
+        if (registrationState.IsRunning)
+        {
+            // TODO: Add start LSL thread here
+            AwaitScreenText = string.Empty;
+            IsAwaitScreenVisible = false;
+            return;
+        }
+        await Task.Delay(3000);
+        AwaitScreenText = AppResources.GetString("RegistrationAwaitRegistratorInfoText", string.Empty);
+        await Task.Delay(3000);
+        AwaitScreenText = string.Empty;
+        IsAwaitScreenVisible = false;
     }
 
     protected override void Dispose(bool disposing)
@@ -257,9 +388,10 @@ public sealed class RegistrationPageViewModel : ViewModelBase
             ReplaceImage(ref _eyesImage, null, nameof(EyesImage));
             ReplaceImage(ref _sceneImage, null, nameof(SceneImage));
         }
-        _EyesMNN.Dispose();
-        _TargetMNN.Dispose();
-        _CustomMNN.Dispose();
+        _EyesMNN?.Dispose();
+        foreach(var model in _SceneCustomMNN)
+            model.Dispose();
+
         base.Dispose(disposing);
     }
 
@@ -270,35 +402,50 @@ public sealed class RegistrationPageViewModel : ViewModelBase
             previous?.Dispose();
     }
 
-    private void LoadModels(string glassesHostname = "")
+    private async void LoadModels(string glassesHostname = "")
     {
         string eyesModel = string.Empty;
         string targetModel = string.Empty;
         string customModel = string.Empty;
-
+        _SceneCustomMNN = new List<MnnInferenceEngine>();
         if(string.IsNullOrEmpty(glassesHostname))
         {
             eyesModel = Path.Combine(AppConfig.GetInstance().AiDirectoryPath, "gaze_detector_v5_nano_mono_yolov26_b1.mnn");
             targetModel = Path.Combine(AppConfig.GetInstance().AiDirectoryPath, "StartTarget.mnn");
             customModel = Path.Combine(AppConfig.GetInstance().AiDirectoryPath, "yolov26n.mnn");
+            ModelSpec spec = new ModelSpec(Channels: 1, Height: 224, Width: 640,
+                                           NumClasses: 2, FixedBatch: 1);
+            _EyesMNN = new MnnInferenceEngine(eyesModel, spec);
+
         }
         else
         {
+            eyesModel = Path.Combine(AppConfig.GetInstance().AiDirectoryPath, "gaze_detector_v5_nano_mono_yolov26_b1.mnn");
+            ModelSpec spec = new ModelSpec(Channels: 1, Height: 224, Width: 640,
+                                           NumClasses: 2, FixedBatch: 1);
+            _EyesMNN = new MnnInferenceEngine(eyesModel, spec);
+            foreach (string model in _Devices.Devices[DeviceSelectedIndex].AiModels)
+            {
+                string modelPath = Path.Combine(AppConfig.GetInstance().AiDirectoryPath, model);
+                if (File.Exists(modelPath))
+                {
+                    string modelPathConf = modelPath + ".xml";
+                    if(File.Exists(modelPathConf))
+                    {
+                        AiModelParams aiparams = XmlSerialization.Deserialize<AiModelParams>(modelPathConf);
+                        spec = new ModelSpec(Channels: aiparams.Channels, Height: aiparams.Height, Width: aiparams.Width,
+                                                       NumClasses: aiparams.NumClasses, FixedBatch: 1);
+
+                        _SceneCustomMNN.Add(new MnnInferenceEngine(modelPath, spec));
+                    }
+                }
+            }
             // TODO: Add xml glasses file parser
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
 
         }
-        ModelSpec spec = new ModelSpec(Channels: 1, Height: 224, Width: 640,
-        NumClasses: 2, FixedBatch: 1);
-        _EyesMNN = new MnnInferenceEngine(eyesModel, spec);
+        
 
-        spec = new ModelSpec(Channels: 3, Height: 352, Width: 640,
-        NumClasses: 1, FixedBatch: 1);
-        _TargetMNN = new MnnInferenceEngine(targetModel, spec);
-
-        spec = new ModelSpec(Channels: 3, Height: 640, Width: 640,
-        NumClasses: 80, FixedBatch: 1);
-        _CustomMNN = new MnnInferenceEngine(customModel, spec);
 
         //using var engine = new MnnInferenceEngine("E:\\workspace_Avalonia\\EyetrackerGlasses\\EyetrackerGlasses\\Models\\yolov26n.mnn", spec);
         //using var engine = new MnnInferenceEngine("E:\\workspace_Avalonia\\EyetrackerGlasses\\EyetrackerGlasses\\Models\\StartTarget.mnn", spec);
@@ -307,5 +454,56 @@ public sealed class RegistrationPageViewModel : ViewModelBase
         //Mat imgBB = BBoxDrawer.AddBBox(img, result);
 
         //imgBB.ImWrite("E:\\workspace_Avalonia\\EyetrackerGlasses\\EyetrackerGlasses\\Models\\test001mnnBByolo.jpg");
+    }
+
+    private async Task<int> ScanLslAsync(CancellationToken cancellationToken)
+    {
+        int foundedStreams = 0;
+        try
+        {
+            var scanner = new LslStreamScanner();
+            var streams = await scanner.ScanAsync(TimeSpan.FromSeconds(5), cancellationToken);
+            var device = GlassesLslStreams.ForDevice(_Devices.Devices[DeviceSelectedIndex].GroupLSL, _Devices.Devices[DeviceSelectedIndex].UserLSL);
+            var eyeStreams = streams.Where(stream => stream.Name == device.Eyes.Name).ToArray();
+
+            foreach (var stream in streams)
+                System.Diagnostics.Trace.WriteLine(
+                    $"{stream.Name} @ {stream.Hostname}: {stream.ChannelCount} x {stream.ChannelFormat}, {stream.NominalSampleRate:g} Hz");
+
+            foundedStreams = streams.Count;
+            //StatusText = eyeStreams.Length == 0
+            //    ? $"LSL streams found: {streams.Count}. GroupE.user0 eye video unavailable."
+            //    : $"LSL streams found: {streams.Count}. Eye video: {eyeStreams[0].Hostname}, {eyeStreams[0].NominalSampleRate:g} Hz.";
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or BadImageFormatException or InternalException)
+        {
+            //StatusText = $"LSL scan failed: {ex.Message}";
+            foundedStreams = 0;
+        }
+        return foundedStreams;
+    }
+
+    private async Task ShowErrorDialog(string text = "")
+    {
+        
+
+        await IoC.UI.ShowMessageAsync(text, "OK");
+
+        
+    }
+
+    private async void TestLoad()
+    {
+        string awaittext = string.Empty;
+        ActiveDeviceName = _Devices.Devices[DeviceSelectedIndex].HostName;
+        IsAwaitScreenVisible = true;
+        AwaitScreenText = AppResources.GetString("RegistrationAwaitConnectionText", string.Empty);
+        await Task.Delay(3000);
+        AwaitScreenText = AppResources.GetString("RegistrationAwaitRegistrationStatusText", string.Empty);
+        await Task.Delay(3000);
+        AwaitScreenText = AppResources.GetString("RegistrationAwaitRegistratorInfoText", string.Empty);
+        await Task.Delay(3000);
+        AwaitScreenText = string.Empty;
+        IsAwaitScreenVisible = false;
     }
 }
