@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -7,7 +7,7 @@
       под который собран сам пакет Avalonia.Android 12.1.5.
     -->
     <TargetFramework>net10.0-android36.0</TargetFramework>
-    <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <RootNamespace>EyetrackerGlasses.Android</RootNamespace>
     <AssemblyName>EyetrackerGlasses.Android</AssemblyName>
@@ -15,8 +15,11 @@
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
-    <RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
+    <EnableMnnNative Condition="'$(EnableMnnNative)' == ''">true</EnableMnnNative>
+    <RuntimeIdentifiers Condition="'$(AndroidDeviceRid)' == ''">android-arm64;android-x64</RuntimeIdentifiers>
+    <RuntimeIdentifiers Condition="'$(AndroidDeviceRid)' != ''">$(AndroidDeviceRid)</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
@@ -53,6 +56,32 @@
   <ItemGroup>
     <ProjectReference Include="..\EyetrackerGlasses\EyetrackerGlasses.csproj" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <AndroidNativeRoot Condition="'$(AndroidNativeRoot)' == ''">$(MSBuildThisFileDirectory)../artifacts/android/runtimes</AndroidNativeRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <AndroidNativeLibrary Include="$(AndroidNativeRoot)/android-arm64/native/*.so"
+                          Abi="arm64-v8a" Condition="'$(AndroidDeviceRid)' != 'android-x64'" />
+    <AndroidNativeLibrary Include="$(AndroidNativeRoot)/android-x64/native/*.so"
+                          Abi="x86_64" Condition="'$(AndroidDeviceRid)' != 'android-arm64'" />
+    <AndroidAsset Include="$(AndroidNativeRoot)/android-arm64/native/*-LICENSE.txt"
+                  Link="Licenses/%(Filename)%(Extension)" Condition="'$(AndroidDeviceRid)' != 'android-x64'" />
+    <AndroidAsset Include="$(AndroidNativeRoot)/android-x64/native/*-LICENSE.txt"
+                  Link="Licenses/%(Filename)%(Extension)" Condition="'$(AndroidDeviceRid)' == 'android-x64'" />
+  </ItemGroup>
+
+  <Target Name="CheckEyetrackerAndroidNative" BeforeTargets="PrepareForBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(AndroidDeviceRid)' != 'android-x64' and
+                      (!Exists('$(AndroidNativeRoot)/android-arm64/native/liblsl.so') or
+                       !Exists('$(AndroidNativeRoot)/android-arm64/native/libOpenCvSharpExtern.so'))"
+           Text="Build ARM64 Android native libraries using native/android/build.py --rid android-arm64." />
+    <Error Condition="'$(AndroidDeviceRid)' != 'android-arm64' and
+                      (!Exists('$(AndroidNativeRoot)/android-x64/native/liblsl.so') or
+                       !Exists('$(AndroidNativeRoot)/android-x64/native/libOpenCvSharpExtern.so'))"
+           Text="Build x64 Android native libraries using native/android/build.py --rid android-x64." />
+  </Target>
 
   <Import Project="..\build\Mnn.Native.targets" />
 </Project>

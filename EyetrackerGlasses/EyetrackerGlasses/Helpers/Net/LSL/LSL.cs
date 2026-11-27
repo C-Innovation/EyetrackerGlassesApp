@@ -162,6 +162,7 @@ namespace EyetrackerGlasses.Helpers.Net.LSL
         public static StreamInfo[] resolve_stream(string prop, string value, int minimum = 1, double timeout = LSL.FOREVER)
         {
             IntPtr[] buf = new IntPtr[1024]; int num = dll.lsl_resolve_byprop(buf, (uint)buf.Length, prop, value, minimum, timeout);
+            if (num < 0) throw new InternalException($"LSL stream discovery failed ({num}).");
             StreamInfo[] res = new StreamInfo[num];
             for (int k = 0; k < num; k++)
                 res[k] = new StreamInfo(buf[k]);
@@ -182,6 +183,7 @@ namespace EyetrackerGlasses.Helpers.Net.LSL
         public static StreamInfo[] resolve_stream(string pred, int minimum = 1, double timeout = LSL.FOREVER)
         {
             IntPtr[] buf = new IntPtr[1024]; int num = dll.lsl_resolve_bypred(buf, (uint)buf.Length, pred, minimum, timeout);
+            if (num < 0) throw new InternalException($"LSL stream discovery failed ({num}).");
             StreamInfo[] res = new StreamInfo[num];
             for (int k = 0; k < num; k++)
                 res[k] = new StreamInfo(buf[k]);
@@ -270,6 +272,14 @@ namespace EyetrackerGlasses.Helpers.Net.LSL
         public StreamInfo(string name, string type, int channel_count = 1, double nominal_srate = LSL.IRREGULAR_RATE, channel_format_t channel_format = channel_format_t.cf_float32, string source_id = "")
             : base(dll.lsl_create_streaminfo(name, type, channel_count, nominal_srate, channel_format, source_id)) { }
         public StreamInfo(IntPtr handle) : base(handle) { }
+
+        internal static StreamInfo FromXml(string xml)
+        {
+            IntPtr handle = dll.lsl_streaminfo_from_xml(xml);
+            if (handle == IntPtr.Zero)
+                throw new InvalidOperationException("liblsl could not import the outlet metadata.");
+            return new StreamInfo(handle);
+        }
 
         protected override void DestroyLSLObject(IntPtr obj) { dll.lsl_destroy_streaminfo(obj); }
 
@@ -954,6 +964,9 @@ namespace EyetrackerGlasses.Helpers.Net.LSL
 
         [DllImport(libname, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
         public static extern IntPtr lsl_get_xml(IntPtr info);
+
+        [DllImport(libname, CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern IntPtr lsl_streaminfo_from_xml([MarshalAs(UnmanagedType.LPUTF8Str)] string xml);
 
         [DllImport(libname, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
         public static extern IntPtr lsl_create_outlet(IntPtr info, int chunk_size, int max_buffered);

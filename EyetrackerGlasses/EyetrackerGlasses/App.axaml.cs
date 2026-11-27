@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+using Avalonia.Controls;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -31,17 +34,22 @@ public partial class App : Application
     /// <inheritdoc />
     public override void OnFrameworkInitializationCompleted()
     {
-        // Порядок важен: темы и языки регистрируются до чтения настроек,
-        // иначе сохранённый выбор не к чему применить.
         var config = AppConfig.GetInstance();
         RegisterThemesAndLanguages(config);
-        config.Initialize(APP_NAME, COMPANY_NAME);
 
-        IoC.Setup(ConfigureServices);
-        PageRegistry.RegisterDefaults();
+        if (ApplicationLifetime is IActivityApplicationLifetime mobile && SharedStorageRoot is not null)
+        {
+            mobile.MainViewFactory = () =>
+            {
+                _sharedStorageView = new ContentControl();
+                RefreshSharedStorageAccess();
+                return _sharedStorageView;
+            };
+            base.OnFrameworkInitializationCompleted();
+            return;
+        }
 
-        IoC.Logger.Log("Приложение запускается…", LogLevel.Success);
-
+        InitializeServices(config);
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow
@@ -65,6 +73,67 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    public static Func<string?>? SharedStorageRoot { get; set; }
+    public static Action? RequestSharedStorageAccess { get; set; }
+    public static Action<string>? PrepareSharedStorage { get; set; }
+
+    private ContentControl? _sharedStorageView;
+    private bool _servicesInitialized;
+
+    public void RefreshSharedStorageAccess()
+    {
+        if (_sharedStorageView is null)
+            return;
+
+        string? root = SharedStorageRoot?.Invoke();
+        if (root is null)
+        {
+            ShowStoragePrompt("Разрешите доступ к общему хранилищу для папки Documents/EyetrackerGlasses.");
+            return;
+        }
+
+        if (_sharedStorageView.Content is MainView)
+            return;
+
+        try
+        {
+            var config = AppConfig.GetInstance();
+            if (!_servicesInitialized)
+            {
+                PrepareSharedStorage?.Invoke(Path.Combine(root, APP_NAME));
+                InitializeServices(config, root);
+                _servicesInitialized = true;
+            }
+
+            _sharedStorageView.Content = CreateMainView(config);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            ShowStoragePrompt($"Общее хранилище недоступно: {error.Message}");
+        }
+    }
+
+    private void ShowStoragePrompt(string text)
+    {
+        var button = new Button { Content = "Разрешить доступ" };
+        button.Click += (_, _) => RequestSharedStorageAccess?.Invoke();
+        _sharedStorageView!.Content = new StackPanel
+        {
+            Margin = new Thickness(24),
+            Spacing = 16,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            Children = { new TextBlock { Text = text, TextWrapping = Avalonia.Media.TextWrapping.Wrap }, button }
+        };
+    }
+
+    private static void InitializeServices(AppConfig config, string? sharedRoot = null)
+    {
+        config.Initialize(APP_NAME, sharedRoot is null ? COMPANY_NAME : "", dataRoot: sharedRoot);
+        IoC.Setup(ConfigureServices);
+        PageRegistry.RegisterDefaults();
+        IoC.Logger.Log("EyetrackerGlasses started.", LogLevel.Success);
     }
 
     /// <summary>

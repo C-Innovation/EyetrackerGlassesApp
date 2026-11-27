@@ -7,6 +7,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\EyetrackerGlasses\EyetrackerGlasses.csproj" />
+    <Compile Include="..\EyetrackerGlasses.Desktop\LslDesktopConfiguration.cs" Link="LslDesktopConfiguration.cs" />
+    <None Include="..\EyetrackerGlasses.Desktop\lsl_api.cfg" Link="lsl_api.cfg"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <Import Project="..\build\Lsl.Native.targets" />
 </Project>

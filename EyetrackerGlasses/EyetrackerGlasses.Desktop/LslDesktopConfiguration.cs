@@ -9,12 +9,22 @@ internal static class LslDesktopConfiguration
     internal static void Configure()
     {
         const string variable = "LSLAPICFG";
-        if (!OperatingSystem.IsWindows() || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable)))
+        if (!OperatingSystem.IsWindows())
             return;
 
-        string config = Path.Combine(AppContext.BaseDirectory, "lsl_api.cfg");
-        if (!File.Exists(config))
-            return;
+        string? config = Environment.GetEnvironmentVariable(variable);
+        if (string.IsNullOrWhiteSpace(config) || !File.Exists(config))
+        {
+            if (!string.IsNullOrWhiteSpace(config))
+                System.Diagnostics.Trace.TraceWarning($"Ignoring missing LSL configuration: {config}");
+
+            config = Path.Combine(AppContext.BaseDirectory, "lsl_api.cfg");
+            if (!File.Exists(config))
+                return;
+        }
+
+        config = Path.GetFullPath(config);
+        System.Diagnostics.Trace.WriteLine($"LSL configuration: {config}");
 
         // liblsl 1.13 uses UCRT getenv, which reads the CRT's own environment.
         int error = _putenv_s(variable, config);

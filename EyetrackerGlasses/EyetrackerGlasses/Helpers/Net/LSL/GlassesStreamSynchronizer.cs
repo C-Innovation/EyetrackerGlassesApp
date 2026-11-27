@@ -12,16 +12,19 @@ public sealed record LslSample<T>(double Timestamp, T Value);
 public sealed class SynchronizedGlassesFrame : IDisposable
 {
     internal SynchronizedGlassesFrame(LslSample<Mat> eyes, LslSample<Mat>? scene,
-        LslSample<GlassesParameters>? parameters, LslSample<int>[] events, LslSample<GlassesGps>? gps)
+        LslSample<GlassesParameters>? parameters, LslSample<int>[] events, LslSample<GlassesGps>? gps,
+        TimeSpan eyesFrameInterval)
     {
         Eyes = eyes;
         Scene = scene;
         Parameters = parameters;
         Events = events;
         Gps = gps;
+        EyesFrameInterval = eyesFrameInterval;
     }
 
     public LslSample<Mat> Eyes { get; }
+    public TimeSpan EyesFrameInterval { get; }
     public LslSample<Mat>? Scene { get; }
     public LslSample<GlassesParameters>? Parameters { get; }
     public IReadOnlyList<LslSample<int>> Events { get; }
@@ -50,32 +53,43 @@ public sealed class GlassesStreamSynchronizer : IDisposable
     private readonly Queue<SynchronizedGlassesFrame> output = new();
     private readonly TimeSpan arrivalDelay;
     private readonly int capacity;
+    private readonly bool paceFromEyeTimestamps;
+    private (double Timestamp, long Arrived)? previewClock;
     private double lastEye = double.NegativeInfinity;
     private double closedThrough = double.NegativeInfinity;
     private LslSample<Mat>? heldScene;
     private bool disposed;
 
     public GlassesStreamSynchronizer(bool enableGps = false, TimeSpan? arrivalDelay = null,
-        int capacity = 120)
+        int capacity = 120) : this(enableGps, arrivalDelay, capacity, paceFromEyeTimestamps: false)
+    {
+    }
+
+    internal GlassesStreamSynchronizer(bool enableGps, TimeSpan? arrivalDelay, int capacity,
+        bool paceFromEyeTimestamps)
     {
         this.arrivalDelay = arrivalDelay ?? TimeSpan.FromSeconds(1.1);
         ArgumentOutOfRangeException.ThrowIfLessThan(this.arrivalDelay, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
         this.capacity = capacity;
+        this.paceFromEyeTimestamps = paceFromEyeTimestamps;
         GpsEnabled = enableGps;
     }
 
     public bool GpsEnabled { get; }
     public event Action<LslSample<GlassesImu>>? ImuReceived;
     public event Action<LslSample<GlassesStatus>>? StatusReceived;
+    public event Action<LslSample<int>>? EventReceived;
 
     /// <summary>Transfers ownership of a valid image. Eye timestamps must be increasing.</summary>
     public void AddEyes(double timestamp, Mat image) => AddEyes(timestamp, image, DefaultEyeFrameRate);
 
     internal void AddEyes(double timestamp, Mat image, double nominalFrameRate)
     {
-        double halfPeriod = double.IsFinite(nominalFrameRate) && nominalFrameRate > 0
-            ? 0.5 / nominalFrameRate
+        double periodMilliseconds = 1000 / nominalFrameRate;
+        // PeriodicTimer requires an interval from 1 ms to UInt32.MaxValue - 1 ms.
+        double halfPeriod = periodMilliseconds is >= 1 and <= (uint.MaxValue - 1d)
+            ? periodMilliseconds / 2000
             : 0.5 / DefaultEyeFrameRate;
         ValidateImage(timestamp, image, MatType.CV_8UC1);
         lock (gate)
@@ -102,8 +116,12 @@ public sealed class GlassesStreamSynchronizer : IDisposable
     public void AddParameters(double timestamp, GlassesParameters values) =>
         Add(parameters, new(timestamp, values), 1200);
 
-    public void AddEvent(double timestamp, int code) =>
-        Add(events, new(timestamp, code), 4096);
+    public void AddEvent(double timestamp, int code)
+    {
+        var sample = new LslSample<int>(timestamp, code);
+        if (Add(events, sample, 4096))
+            EventReceived?.Invoke(sample);
+    }
 
     public void AddGps(double timestamp, GlassesGps values)
     {
@@ -134,7 +152,7 @@ public sealed class GlassesStreamSynchronizer : IDisposable
         }
     }
 
-    private void Add<T>(List<LslSample<T>> samples, LslSample<T> sample, int limit, Action<T>? release = null)
+    private bool Add<T>(List<LslSample<T>> samples, LslSample<T> sample, int limit, Action<T>? release = null)
     {
         ValidateTimestamp(sample.Timestamp);
         lock (gate)
@@ -142,7 +160,7 @@ public sealed class GlassesStreamSynchronizer : IDisposable
             if (disposed)
             {
                 release?.Invoke(sample.Value);
-                return;
+                return false;
             }
 
             int index = samples.Count;
@@ -157,12 +175,13 @@ public sealed class GlassesStreamSynchronizer : IDisposable
             }
 
             PublishReady();
+            return true;
         }
     }
 
     private void PublishReady()
     {
-        while (eyes.TryPeek(out var pending) && Stopwatch.GetElapsedTime(pending.Arrived) >= arrivalDelay)
+        while (eyes.TryPeek(out var pending) && IsReady(pending.Sample.Timestamp, pending.Arrived))
         {
             double time = pending.Sample.Timestamp;
             double start = double.IsNegativeInfinity(closedThrough) ? time - pending.HalfPeriod : closedThrough;
@@ -185,10 +204,29 @@ public sealed class GlassesStreamSynchronizer : IDisposable
                 gps.RemoveRange(0, gpsIndex);
 
             closedThrough = end;
-            output.Enqueue(new(pending.Sample, sceneFrame, parameterFrame, windowEvents, gpsFrame));
+            output.Enqueue(new(pending.Sample, sceneFrame, parameterFrame, windowEvents, gpsFrame,
+                TimeSpan.FromSeconds(2 * pending.HalfPeriod)));
             if (output.Count > capacity)
                 output.Dequeue().Dispose();
         }
+    }
+
+    private bool IsReady(double timestamp, long arrived)
+    {
+        if (!paceFromEyeTimestamps)
+            return Stopwatch.GetElapsedTime(arrived) >= arrivalDelay;
+
+        var clock = previewClock ?? (timestamp, arrived);
+        double due = arrivalDelay.TotalSeconds + (timestamp - clock.Timestamp);
+        double arrival = Stopwatch.GetElapsedTime(clock.Arrived, arrived).TotalSeconds;
+        // Rebuffer after a delivery gap that exhausted the buffer or a source-clock jump.
+        if (due < arrival || due - arrival > arrivalDelay.TotalSeconds + 10)
+        {
+            clock = (timestamp, arrived);
+            due = arrivalDelay.TotalSeconds;
+        }
+        previewClock = clock;
+        return Stopwatch.GetElapsedTime(clock.Arrived).TotalSeconds >= due;
     }
 
     private LslSample<Mat>? SelectScene(double timestamp)

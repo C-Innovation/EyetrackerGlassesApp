@@ -18,6 +18,7 @@ Console.CancelKeyPress += (_, e) =>
 
 try
 {
+    EyetrackerGlasses.Desktop.LslDesktopConfiguration.Configure();
     Console.WriteLine($"Native liblsl: {LSL.library_version()}");
     if (scan)
         return await ScanAsync(args.Length == 2 ? args[1] : "", stop.Token);

@@ -22,6 +22,7 @@ public sealed record GlassesLslStreams(LslVideoStream Eyes, LslVideoStream Scene
     public string Imu { get; init; } = "glasses_imu";
     public string Status { get; init; } = "glasses_status";
     public string? Hostname { get; init; }
+    public string? PeerAddress { get; init; }
 
     /// <summary>Builds the stream names used by glasses_pc_viewer.</summary>
     public static GlassesLslStreams ForDevice(string group, string user, string? hostname = null)
@@ -62,9 +63,17 @@ public sealed class GlassesLslReceiver(GlassesLslStreams streams, GlassesStreamS
 
     /// <summary>Reports changes on the background threads that receive each stream.</summary>
     public event Action<string, LslConnectionState>? ConnectionStateChanged;
+    // The frame is borrowed for the duration of the callback. Copy it to keep it.
+    internal event Action<LslSample<Mat>>? SceneFrameReceived;
 
     /// <summary>Runs until cancelled or a stream reports an unrecoverable error. Await before disposing the synchronizer.</summary>
     public async Task RunAsync(CancellationToken cancellationToken = default)
+    {
+        await RunUntilStoppedAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    internal async Task RunUntilStoppedAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref running, 1) != 0)
             throw new InvalidOperationException("This receiver is already running.");
@@ -73,13 +82,14 @@ public sealed class GlassesLslReceiver(GlassesLslStreams streams, GlassesStreamS
         {
             using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var token = stop.Token;
+            var tcpDiscovery = streams.PeerAddress is { Length: > 0 } peer ? new LslTcpDiscovery(peer, token) : null;
 
             Task Start(string name, Action<StreamInlet, StreamInfo, CancellationToken> read) =>
                 Task.Factory.StartNew(() =>
                 {
                     try
                     {
-                        Receive(name, read, token);
+                        Receive(name, read, tcpDiscovery, token);
                     }
                     catch
                     {
@@ -97,7 +107,7 @@ public sealed class GlassesLslReceiver(GlassesLslStreams streams, GlassesStreamS
                         (timestamp, image) => synchronizer.AddEyes(timestamp, image, frameRate), ct);
                 }),
                 Start(streams.Scene.Name, (inlet, info, ct) =>
-                    ReadVideo(inlet, info, streams.Scene, false, synchronizer.AddScene, ct)),
+                    ReadVideo(inlet, info, streams.Scene, false, ReceiveScene, ct)),
                 Start(streams.Parameters, (inlet, info, ct) => ReadFloat32(inlet, info, GlassesParameters.ChannelCount,
                     GlassesParameters.Decode, synchronizer.AddParameters, ct)),
                 Start(streams.Events, ReadEvents),
@@ -110,7 +120,6 @@ public sealed class GlassesLslReceiver(GlassesLslStreams streams, GlassesStreamS
                     : Task.CompletedTask
             ];
             await Task.WhenAll(readers).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
         }
         finally
         {
@@ -118,8 +127,20 @@ public sealed class GlassesLslReceiver(GlassesLslStreams streams, GlassesStreamS
         }
     }
 
+    private void ReceiveScene(double timestamp, Mat image)
+    {
+        try
+        {
+            SceneFrameReceived?.Invoke(new(timestamp, image));
+        }
+        finally
+        {
+            synchronizer.AddScene(timestamp, image);
+        }
+    }
+
     private void Receive(string name, Action<StreamInlet, StreamInfo, CancellationToken> read,
-        CancellationToken token)
+        LslTcpDiscovery? tcpDiscovery, CancellationToken token)
     {
         LslConnectionState? state = null;
         void Report(LslConnectionState next)
@@ -145,31 +166,45 @@ public sealed class GlassesLslReceiver(GlassesLslStreams streams, GlassesStreamS
                 if (token.IsCancellationRequested)
                     return;
 
-                if (candidates.Length == 0)
+                using var directInfo = candidates.Length == 0 && tcpDiscovery is not null
+                    ? FindDirectOutlet(tcpDiscovery, name)
+                    : null;
+                var info = candidates.FirstOrDefault() ?? directInfo;
+                if (token.IsCancellationRequested)
+                    return;
+                if (info is null || streams.Hostname is not null &&
+                    !string.Equals(info.hostname(), streams.Hostname, StringComparison.OrdinalIgnoreCase))
                 {
                     Report(LslConnectionState.NotFound);
                     continue;
                 }
 
-                var info = candidates[0];
                 using var inlet = new StreamInlet(info, max_buflen: 3, recover: false,
                     postproc_flags: processing_options_t.proc_clocksync);
                 Report(LslConnectionState.Opening);
-                inlet.open_stream(ConnectionTimeout);
-                if (token.IsCancellationRequested)
-                    return;
+                try
+                {
+                    inlet.open_stream(ConnectionTimeout);
+                    if (token.IsCancellationRequested)
+                        return;
 
-                Report(LslConnectionState.SynchronizingClock);
-                inlet.time_correction(ConnectionTimeout);
-                if (token.IsCancellationRequested)
-                    return;
+                    Report(LslConnectionState.SynchronizingClock);
+                    inlet.time_correction(ConnectionTimeout);
+                    if (token.IsCancellationRequested)
+                        return;
 
-                Report(LslConnectionState.Ready);
-                read(inlet, info, token);
+                    Report(LslConnectionState.Ready);
+                    read(inlet, info, token);
+                }
+                finally
+                {
+                    inlet.close_stream();
+                }
             }
             catch (LostException)
             {
-                Report(LslConnectionState.Lost);
+                if (!token.IsCancellationRequested)
+                    Report(LslConnectionState.Lost);
             }
             catch (TimeoutException) when (state == LslConnectionState.Opening)
             {
@@ -187,6 +222,14 @@ public sealed class GlassesLslReceiver(GlassesLslStreams streams, GlassesStreamS
 
             token.WaitHandle.WaitOne(50);
         }
+    }
+
+    private static StreamInfo? FindDirectOutlet(LslTcpDiscovery discovery, string name)
+    {
+        var candidates = discovery.GetSnapshotAsync().GetAwaiter().GetResult()[name].ToArray();
+        if (candidates.Length > 1)
+            throw new InvalidOperationException($"Multiple LSL streams named '{name}' were found on the recorder.");
+        return candidates.Length == 1 ? StreamInfo.FromXml(candidates[0]) : null;
     }
 
     private static void ReadFloat32<T>(StreamInlet inlet, StreamInfo info, int channels, Func<float[], T> decode,

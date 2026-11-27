@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -115,6 +115,8 @@ namespace EyetrackerGlasses
 
         #endregion
 
+        private string? _dataRootOverride;
+
         private AppConfig()
         {
         }
@@ -130,13 +132,14 @@ namespace EyetrackerGlasses
         /// <param name="settingsStore">
         /// Хранилище настроек. <c>null</c> — XML-файл в каталоге настроек.
         /// </param>
-        public void Initialize(string appName, string companyName = "", ISettingsStore<AppSettings>? settingsStore = null, ISettingsStore<EyetrackerDevices>? devicesStore = null )
+        public void Initialize(string appName, string companyName = "", ISettingsStore<AppSettings>? settingsStore = null, ISettingsStore<EyetrackerDevices>? devicesStore = null, string? dataRoot = null)
         {
             if (string.IsNullOrWhiteSpace(appName))
                 throw new ArgumentException("Имя приложения не задано.", nameof(appName));
 
             AppName = appName;
             CompanyName = companyName ?? string.Empty;
+            _dataRootOverride = dataRoot;
 
             string root = GetPlatformDataRoot();
 
@@ -185,6 +188,9 @@ namespace EyetrackerGlasses
 
         private string GetPlatformDataRoot()
         {
+            if (_dataRootOverride is not null)
+                return _dataRootOverride;
+
             if (OperatingSystem.IsWindows())
             {
                 // %LOCALAPPDATA% лежит рядом с ApplicationData (%APPDATA%),
@@ -355,7 +361,7 @@ namespace EyetrackerGlasses
             {
                 EyetrackerDevice dev = new EyetrackerDevice()
                 {
-                    HostName = "eg00s0000",
+                    HostName = OperatingSystem.IsAndroid() ? "10.0.0.80" : "eg00s0000",
                     GroupLSL = "GroupE",
                     UserLSL = "user0",
                     AiModels = new List<string> { "StartTarget.mnn", "yolov26n.mnn" }

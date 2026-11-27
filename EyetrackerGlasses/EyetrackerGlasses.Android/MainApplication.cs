@@ -38,6 +38,8 @@ public class MainApplication : AvaloniaAndroidApplication<App>
         // Поставщик иконок регистрируется до первой отрисовки:
         // к нему обращаются стили кнопок.
         IconProvider.Current.Register<FontAwesomeIconProvider>();
+        App.SharedStorageRoot = AndroidSharedStorage.GetDocumentsRoot;
+        App.PrepareSharedStorage = AndroidSharedStorage.ConfigureLsl;
 
         return base.CustomizeAppBuilder(builder)
                    .WithInterFont();

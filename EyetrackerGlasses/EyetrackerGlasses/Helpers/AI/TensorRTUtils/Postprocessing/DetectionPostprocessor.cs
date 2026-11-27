@@ -1,5 +1,4 @@
 using OpenCvSharp;
-using OpenCvSharp.Dnn;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -132,23 +131,22 @@ public sealed class DetectionPostprocessor
             // Return original indices to the caller of Nms.
             return Nms(boxes, confs, classIds, tileIds).Select(i => top[i]).ToArray();
         }
-        float st = _o.ScoreThreshold, nt = _o.NmsThreshold;
+        float threshold = _o.NmsThreshold;
 
         if (_packed != null)   // NMS отдельно по каждому тайлу
         {
-            return NmsGrouped(boxes, confs, st, nt,
+            return NmsGrouped(boxes, confs, threshold,
                 i => ((long)tileIds[i], _o.ClassAgnosticNms ? 0 : classIds[i]));
         }
         if (!_o.ClassAgnosticNms)   // NMS отдельно по классам, затем сортировка по conf
         {
-            var r = NmsGrouped(boxes, confs, st, nt, i => (0L, classIds[i]));
+            var r = NmsGrouped(boxes, confs, threshold, i => (0L, classIds[i]));
             return r.OrderByDescending(i => confs[i]).ToArray();
         }
-        CvDnn.NMSBoxes(boxes, confs, st, nt, out int[] keep);   // общий NMS на все классы (как в C++)
-        return keep;
+        return SuppressOverlaps(boxes, confs, threshold, Enumerable.Range(0, boxes.Count)).ToArray();
     }
 
-    private static int[] NmsGrouped(List<Rect2d> boxes, List<float> confs, float st, float nt,
+    private static int[] NmsGrouped(List<Rect2d> boxes, List<float> confs, float threshold,
                                     Func<int, (long Tile, int Class)> groupOf)
     {
         var groups = new Dictionary<(long, int), List<int>>();
@@ -159,15 +157,33 @@ public sealed class DetectionPostprocessor
             group.Add(i);
         }
 
+        return groups.Values.SelectMany(group => SuppressOverlaps(boxes, confs, threshold, group)).ToArray();
+    }
+
+    private static List<int> SuppressOverlaps(List<Rect2d> boxes, List<float> scores, float threshold,
+        IEnumerable<int> candidates)
+    {
         var keep = new List<int>();
-        foreach (var idxs in groups.Values)
+        foreach (int candidate in candidates.OrderByDescending(index => scores[index]))
         {
-            var tb = idxs.Select(i => boxes[i]).ToList();
-            var tc = idxs.Select(i => confs[i]).ToList();
-            CvDnn.NMSBoxes(tb, tc, st, nt, out int[] k);
-            foreach (int j in k) keep.Add(idxs[j]);
+            Rect2d box = boxes[candidate];
+            if (!keep.Any(index => Overlap(box, boxes[index]) > threshold))
+                keep.Add(candidate);
         }
-        return keep.ToArray();
+        return keep;
+    }
+
+    private static float Overlap(Rect2d a, Rect2d b)
+    {
+        double totalArea = a.Width * a.Height + b.Width * b.Height;
+        if (totalArea <= double.BitIncrement(1.0) - 1.0)
+            return 1f;
+
+        double width = Math.Max(0, Math.Min(a.X + a.Width, b.X + b.Width) - Math.Max(a.X, b.X));
+        double height = Math.Max(0, Math.Min(a.Y + a.Height, b.Y + b.Height) - Math.Max(a.Y, b.Y));
+        double intersection = width * height;
+        // Match the float rounding used by OpenCV's rectangle NMS.
+        return 1f - (float)(1.0 - intersection / (totalArea - intersection));
     }
 
     private static bool IsFinite(Rect2f box) => float.IsFinite(box.X) && float.IsFinite(box.Y)
